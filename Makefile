@@ -1,14 +1,15 @@
 CM_CSRC = cminor.c util.c
-CM_LSRC = tokenize.l
-CM_YSRC = parse.y
+CM_LSRC = scan.l
 
 CM_CFLAGS = -g -Wall -Wextra -Wpedantic -Wno-parentheses -std=c99 \
-	-D_POSIX_C_SOURCE=200112L -I. -Isrc $(CFLAGS)
+	-D_POSIX_C_SOURCE=200809L -Isrc $(CFLAGS)
 
-CM_DEPS = $(CM_CSRC:.c=.d) $(CM_LSRC:.l=.yy.d) $(CM_YSRC:.y=.tab.d)
-CM_OBJS = $(CM_CSRC:.c=.o) $(CM_LSRC:.l=.yy.o) $(CM_YSRC:.y=.tab.o)
+CM_DEPS = $(CM_CSRC:.c=.d) $(CM_LSRC:.l=.yy.d)
+CM_OBJS = $(CM_CSRC:.c=.o) $(CM_LSRC:.l=.yy.o)
 
 CBUILD = $(CC) $(CM_CFLAGS) -MMD -MF dep/$*.d -c -o $@ $<
+
+LEX = flex
 
 .PHONY: clean
 .PRECIOUS: %/ gen/%.yy.c
@@ -23,9 +24,6 @@ cminor: $(addprefix obj/,$(CM_OBJS)) | obj/
 
 dep/%.yy.d: gen/%.yy.c | dep/
 	$(CC) $(CM_CFLAGS) -MM -MG -MT obj/$*.yy.o -MF $@ $<
-
-gen/%.tab.c gen/%.tab.h: src/%.y | gen/
-	$(YACC) -d -b gen/$* $<
 
 gen/%.yy.c: src/%.l | gen/
 	$(LEX) -t $< > $@

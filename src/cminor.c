@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "util.h"
+#include "scan.h"
 #include "str.h"
-#include "tokenize.h"
+#include "util.h"
 #include "vector.h"
 
 static enum {
@@ -13,7 +13,7 @@ static enum {
 
 static vector_t(str_t) inputs;
 
-void process_args(int argc, char **argv) {
+static void process_args(int argc, char **argv) {
 	for(int i = 1; i < argc; i++) {
 		if(strcmp(argv[i],"-scan") == 0)
 			mode = MODE_SCANNER;
@@ -38,7 +38,7 @@ int main(int argc, char **argv) {
 		if(f = fopen(inputs.v[0].v,"r"), !f)
 			die("cannot open '%s' for reading",inputs.v[0].v);
 
-		tokenize(f);
+		scan(f);
 		break;
 
 	default: die("unknown or unhandled mode (%i)",mode);
