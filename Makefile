@@ -19,8 +19,14 @@ all: cminor
 cminor: $(addprefix obj/,$(CM_OBJS)) | obj/
 	$(CC) $(CM_CFLAGS) -o $@ $^
 
-%/:
-	mkdir -p $*
+dep/:
+	mkdir -p $@
+
+gen/:
+	mkdir -p $@
+
+obj/:
+	mkdir -p $@
 
 dep/%.yy.d: gen/%.yy.c | dep/
 	$(CC) $(CM_CFLAGS) -MM -MG -MT obj/$*.yy.o -MF $@ $<
@@ -28,7 +34,7 @@ dep/%.yy.d: gen/%.yy.c | dep/
 gen/%.yy.c: src/%.l | gen/
 	$(LEX) -t $< > $@
 
-obj/%.o: gen/%.c | dep/ gen/
+obj/%.o: gen/%.c | dep/ obj/
 	$(CBUILD)
 
 obj/%.o: src/%.c | dep/ obj/
