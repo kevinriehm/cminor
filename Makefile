@@ -1,7 +1,7 @@
 CM_CSRC = cminor.c util.c
 CM_LSRC = scan.l
 
-CM_CFLAGS = -g -Wall -Wextra -Wpedantic -Wno-parentheses -std=c99 \
+CM_CFLAGS = -g -Wall -Wextra -Wno-parentheses -std=c99 \
 	-D_POSIX_C_SOURCE=200809L -Isrc $(CFLAGS)
 
 CM_DEPS = $(CM_CSRC:.c=.d) $(CM_LSRC:.l=.yy.d)
