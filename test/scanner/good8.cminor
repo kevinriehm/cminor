@@ -1,0 +1,4 @@
+// Some external declarations
+exit: function void (status: integer);
+puts: function void (s: string);
+

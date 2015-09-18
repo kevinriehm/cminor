@@ -1,0 +1,4 @@
+main: function integer (argc: integer, argv: array [] string) = {
+	print argc, " arguments; invoked as ", argv[0], "\n";
+}
+

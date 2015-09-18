@@ -1,0 +1,19 @@
+"Output should be \"good N\" for N from 0 to 8."
+"good 0" /* "BAD 1" C-style comment */ "good 1"
+"good 2" // "BAD 2" C++-style comment
+"good 3"
+
+//
+//    
+//Whole bunch of comments"BAD 3"
+"good 4"
+
+/*"BAD 4"
+ * Multi-line
+ *comment.
+ */"good 5"
+
+/**********************/"good 6"
+/*/*"BAD 5" /* /* /* /* /* /* /* /* "BAD 6"/*/"good 7"
+/*/*/"good 8"
+

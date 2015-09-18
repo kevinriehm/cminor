@@ -1,0 +1,3 @@
+#include "nothing"
+#define ABC 123
+
