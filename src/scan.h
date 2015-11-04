@@ -1,9 +1,14 @@
 #ifndef SCAN_H
 #define SCAN_H
 
-extern int currentline;
+#include <stdio.h>
+
+FILE *yyin;
+
+int currentline;
 
 void scan();
+int yylex();
 
 #endif
 
