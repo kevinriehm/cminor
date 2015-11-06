@@ -29,9 +29,6 @@ void parse(FILE *);
 void yyerror(const char *);
 %}
 
-/* Allows us to omit the prefix in the grammar, for conciseness */
-%define api.token.prefix {TOKEN_}
-
 /* Makes the error messages sent to yyerror *much* more useful */
 %define parse.error verbose
 
@@ -64,30 +61,30 @@ void yyerror(const char *);
 %type <exprs> exprs exprs_nonempty arrays_nonempty
 %type <stmts> stmts
 
-%token LPAREN RPAREN
-%token LBRACE RBRACE
-%token LBRACKET RBRACKET
+%token TOKEN_LPAREN TOKEN_RPAREN
+%token TOKEN_LBRACE TOKEN_RBRACE
+%token TOKEN_LBRACKET TOKEN_RBRACKET
 
-%token PERCENT ASTERISK PLUS MINUS
-%token NOT SLASH CARET EQUAL
+%token TOKEN_PERCENT TOKEN_ASTERISK TOKEN_PLUS TOKEN_MINUS
+%token TOKEN_NOT TOKEN_SLASH TOKEN_CARET TOKEN_EQUAL
 
-%token COMMA COLON SEMICOLON
+%token TOKEN_COMMA TOKEN_COLON TOKEN_SEMICOLON
 
-%token DECREMENT INCREMENT
+%token TOKEN_DECREMENT TOKEN_INCREMENT
 
-%token EQ NE LT LE GT GE
+%token TOKEN_EQ TOKEN_NE TOKEN_LT TOKEN_LE TOKEN_GT TOKEN_GE
 
-%token AND OR
+%token TOKEN_AND TOKEN_OR
 
-%token ARRAY BOOLEAN CHAR ELSE FALSE
-%token FOR FUNCTION IF INTEGER PRINT
-%token RETURN STRING TRUE VOID WHILE
+%token TOKEN_ARRAY TOKEN_BOOLEAN TOKEN_CHAR TOKEN_ELSE TOKEN_FALSE
+%token TOKEN_FOR TOKEN_FUNCTION TOKEN_IF TOKEN_INTEGER TOKEN_PRINT
+%token TOKEN_RETURN TOKEN_STRING TOKEN_TRUE TOKEN_VOID TOKEN_WHILE
 
-%token <s> IDENTIFIER
+%token <s> TOKEN_IDENTIFIER
 
-%token <i> INTEGER_LITERAL
-%token <c> CHARACTER_LITERAL
-%token <s> STRING_LITERAL
+%token <i> TOKEN_INTEGER_LITERAL
+%token <c> TOKEN_CHARACTER_LITERAL
+%token <s> TOKEN_STRING_LITERAL
 
 %%
 
@@ -102,49 +99,53 @@ decl: decl_func { $$ = $1; }
     | decl_var { $$ = $1; }
     ;
 
-decl_func: IDENTIFIER COLON func_type SEMICOLON {
+decl_func: TOKEN_IDENTIFIER TOKEN_COLON func_type TOKEN_SEMICOLON {
 	$$ = decl_create($1,$3,NULL,NULL);
          }
-         | IDENTIFIER COLON func_type EQUAL LBRACE stmts RBRACE {
+         | TOKEN_IDENTIFIER TOKEN_COLON func_type TOKEN_EQUAL TOKEN_LBRACE
+           stmts TOKEN_RBRACE {
 	$$ = decl_create($1,$3,NULL,
 		stmt_create(STMT_BLOCK,NULL,NULL,NULL,NULL,$6.head,NULL));
          }
          ;
 
-decl_var: IDENTIFIER COLON var_type SEMICOLON {
+decl_var: TOKEN_IDENTIFIER TOKEN_COLON var_type TOKEN_SEMICOLON {
 	$$ = decl_create($1,$3,NULL,NULL);
         }
-        | IDENTIFIER COLON var_type EQUAL expr SEMICOLON {
+        | TOKEN_IDENTIFIER TOKEN_COLON var_type TOKEN_EQUAL expr
+          TOKEN_SEMICOLON {
 	$$ = decl_create($1,$3,$5,NULL);
         }
-        | IDENTIFIER COLON var_type EQUAL array SEMICOLON {
+        | TOKEN_IDENTIFIER TOKEN_COLON var_type TOKEN_EQUAL array
+          TOKEN_SEMICOLON {
 	$$ = decl_create($1,$3,$5,NULL);
         }
         ;
 
-atomic_type: BOOLEAN { $$ = type_create(TYPE_BOOLEAN,0,NULL,NULL); }
-           | CHAR { $$ = type_create(TYPE_CHARACTER,0,NULL,NULL); }
-           | INTEGER { $$ = type_create(TYPE_INTEGER,0,NULL,NULL); }
-           | STRING { $$ = type_create(TYPE_STRING,0,NULL,NULL); }
+atomic_type: TOKEN_BOOLEAN { $$ = type_create(TYPE_BOOLEAN,0,NULL,NULL); }
+           | TOKEN_CHAR { $$ = type_create(TYPE_CHARACTER,0,NULL,NULL); }
+           | TOKEN_INTEGER { $$ = type_create(TYPE_INTEGER,0,NULL,NULL); }
+           | TOKEN_STRING { $$ = type_create(TYPE_STRING,0,NULL,NULL); }
            ;
 
-func_type: FUNCTION atomic_type args {
+func_type: TOKEN_FUNCTION atomic_type args {
 	$$ = type_create(TYPE_FUNCTION,0,$3.head,$2);
          }
-         | FUNCTION VOID args {
+         | TOKEN_FUNCTION TOKEN_VOID args {
 	$$ = type_create(
 		TYPE_FUNCTION,0,$3.head,type_create(TYPE_VOID,0,NULL,NULL));
          }
          ;
 
 arg_type: atomic_type { $$ = $1; }
-        | ARRAY LBRACKET RBRACKET arg_type {
+        | TOKEN_ARRAY TOKEN_LBRACKET TOKEN_RBRACKET arg_type {
 	$$ = type_create(TYPE_ARRAY,0,NULL,$4);
         }
         ;
 
 var_type: atomic_type { $$ = $1; }
-        | ARRAY LBRACKET INTEGER_LITERAL RBRACKET var_type {
+        | TOKEN_ARRAY TOKEN_LBRACKET TOKEN_INTEGER_LITERAL TOKEN_RBRACKET
+          var_type {
 	$$ = type_create(TYPE_ARRAY,$3,NULL,$5);
         }
         ;
@@ -154,88 +155,90 @@ exprs: { $$.head = $$.tail = NULL; }
      ;
 
 exprs_nonempty: expr { $$.head = $$.tail = $1; }
-              | exprs_nonempty COMMA expr { APPEND($1,$3); $$ = $1; }
+              | exprs_nonempty TOKEN_COMMA expr { APPEND($1,$3); $$ = $1; }
               ;
 
-expr: lvalue EQUAL expr { $$ = expr_create(EXPR_ASSIGN,$1,$3); }
+expr: lvalue TOKEN_EQUAL expr { $$ = expr_create(EXPR_ASSIGN,$1,$3); }
     | expr7 { $$ = $1; }
     ;
 
-expr7: expr7 OR expr6 { $$ = expr_create(EXPR_OR,$1,$3); }
+expr7: expr7 TOKEN_OR expr6 { $$ = expr_create(EXPR_OR,$1,$3); }
      | expr6 { $$ = $1; }
 
-expr6: expr6 AND expr5 { $$ = expr_create(EXPR_AND,$1,$3); }
+expr6: expr6 TOKEN_AND expr5 { $$ = expr_create(EXPR_AND,$1,$3); }
      | expr5 { $$ = $1; }
      ;
 
-expr5: expr5 EQ expr4 { $$ = expr_create(EXPR_EQ,$1,$3); }
-     | expr5 NE expr4 { $$ = expr_create(EXPR_NE,$1,$3); }
-     | expr5 LT expr4 { $$ = expr_create(EXPR_LT,$1,$3); }
-     | expr5 LE expr4 { $$ = expr_create(EXPR_LE,$1,$3); }
-     | expr5 GT expr4 { $$ = expr_create(EXPR_GT,$1,$3); }
-     | expr5 GE expr4 { $$ = expr_create(EXPR_GE,$1,$3); }
+expr5: expr5 TOKEN_EQ expr4 { $$ = expr_create(EXPR_EQ,$1,$3); }
+     | expr5 TOKEN_NE expr4 { $$ = expr_create(EXPR_NE,$1,$3); }
+     | expr5 TOKEN_LT expr4 { $$ = expr_create(EXPR_LT,$1,$3); }
+     | expr5 TOKEN_LE expr4 { $$ = expr_create(EXPR_LE,$1,$3); }
+     | expr5 TOKEN_GT expr4 { $$ = expr_create(EXPR_GT,$1,$3); }
+     | expr5 TOKEN_GE expr4 { $$ = expr_create(EXPR_GE,$1,$3); }
      | expr4 { $$ = $1; }
      ;
 
-expr4: expr4 PLUS expr3 { $$ = expr_create(EXPR_ADD,$1,$3); }
-     | expr4 MINUS expr3 { $$ = expr_create(EXPR_SUBTRACT,$1,$3); }
+expr4: expr4 TOKEN_PLUS expr3 { $$ = expr_create(EXPR_ADD,$1,$3); }
+     | expr4 TOKEN_MINUS expr3 { $$ = expr_create(EXPR_SUBTRACT,$1,$3); }
      | expr3 { $$ = $1; }
      ;
 
-expr3: expr3 ASTERISK expr2 { $$ = expr_create(EXPR_MULTIPLY,$1,$3); }
-     | expr3 SLASH expr2 { $$ = expr_create(EXPR_DIVIDE,$1,$3); }
-     | expr3 PERCENT expr2 { $$ = expr_create(EXPR_REMAINDER,$1,$3); }
+expr3: expr3 TOKEN_ASTERISK expr2 { $$ = expr_create(EXPR_MULTIPLY,$1,$3); }
+     | expr3 TOKEN_SLASH expr2 { $$ = expr_create(EXPR_DIVIDE,$1,$3); }
+     | expr3 TOKEN_PERCENT expr2 { $$ = expr_create(EXPR_REMAINDER,$1,$3); }
      | expr2 { $$ = $1; }
      ;
 
-expr2: expr2 CARET expr1 { $$ = expr_create(EXPR_EXPONENT,$1,$3); }
+expr2: expr2 TOKEN_CARET expr1 { $$ = expr_create(EXPR_EXPONENT,$1,$3); }
      | expr1 { $$ = $1; }
      ;
 
-expr1: MINUS expr1 { $$ = expr_create(EXPR_NEGATE,$2,NULL); }
-     | NOT expr1 { $$ = expr_create(EXPR_NOT,$2,NULL); }
+expr1: TOKEN_MINUS expr1 { $$ = expr_create(EXPR_NEGATE,$2,NULL); }
+     | TOKEN_NOT expr1 { $$ = expr_create(EXPR_NOT,$2,NULL); }
      | expr0 { $$ = $1; }
      ;
 
-expr0: TRUE { $$ = expr_create_boolean(true); }
-     | FALSE { $$ = expr_create_boolean(false); }
-     | CHARACTER_LITERAL { $$ = expr_create_character($1); }
-     | INTEGER_LITERAL { $$ = expr_create_integer($1); }
-     | STRING_LITERAL { $$ = expr_create_string($1); }
+expr0: TOKEN_TRUE { $$ = expr_create_boolean(true); }
+     | TOKEN_FALSE { $$ = expr_create_boolean(false); }
+     | TOKEN_CHARACTER_LITERAL { $$ = expr_create_character($1); }
+     | TOKEN_INTEGER_LITERAL { $$ = expr_create_integer($1); }
+     | TOKEN_STRING_LITERAL { $$ = expr_create_string($1); }
      | lvalue { $$ = $1; }
-     | lvalue INCREMENT { $$ = expr_create(EXPR_INCREMENT,$1,NULL); }
-     | lvalue DECREMENT { $$ = expr_create(EXPR_DECREMENT,$1,NULL); }
-     | IDENTIFIER LPAREN exprs RPAREN {
+     | lvalue TOKEN_INCREMENT { $$ = expr_create(EXPR_INCREMENT,$1,NULL); }
+     | lvalue TOKEN_DECREMENT { $$ = expr_create(EXPR_DECREMENT,$1,NULL); }
+     | TOKEN_IDENTIFIER TOKEN_LPAREN exprs TOKEN_RPAREN {
 	$$ = expr_create(EXPR_CALL,expr_create_reference($1),$3.head);
      }
-     | LPAREN expr RPAREN { $$ = $2; }
+     | TOKEN_LPAREN expr TOKEN_RPAREN { $$ = $2; }
      ;
 
-lvalue: IDENTIFIER { $$ = expr_create_reference($1); }
-      | lvalue LBRACKET expr RBRACKET {
+lvalue: TOKEN_IDENTIFIER { $$ = expr_create_reference($1); }
+      | lvalue TOKEN_LBRACKET expr TOKEN_RBRACKET {
 	$$ = expr_create(EXPR_SUBSCRIPT,$1,$3);
       }
       ;
 
 arrays_nonempty: array { $$.head = $$.tail = $1; }
-               | arrays_nonempty COMMA array { APPEND($1,$3); $$ = $1; }
+               | arrays_nonempty TOKEN_COMMA array { APPEND($1,$3); $$ = $1; }
                ;
 
-array: LBRACE exprs RBRACE { $$ = expr_create(EXPR_ARRAY,$2.head,NULL); }
-     | LBRACE arrays_nonempty RBRACE {
+array: TOKEN_LBRACE exprs TOKEN_RBRACE {
+	$$ = expr_create(EXPR_ARRAY,$2.head,NULL);
+     }
+     | TOKEN_LBRACE arrays_nonempty TOKEN_RBRACE {
 	$$ = expr_create(EXPR_ARRAY,$2.head,NULL);
      }
      ;
 
-args: LPAREN RPAREN { $$.head = $$.tail = NULL; }
-    | LPAREN args_nonempty RPAREN { $$ = $2; }
+args: TOKEN_LPAREN TOKEN_RPAREN { $$.head = $$.tail = NULL; }
+    | TOKEN_LPAREN args_nonempty TOKEN_RPAREN { $$ = $2; }
     ;
 
 args_nonempty: arg { $$.head = $$.tail = $1; }
-             | args_nonempty COMMA arg { APPEND($1,$3); $$ = $1; }
+             | args_nonempty TOKEN_COMMA arg { APPEND($1,$3); $$ = $1; }
              ;
 
-arg: IDENTIFIER COLON arg_type { $$ = arg_create($1,$3); }
+arg: TOKEN_IDENTIFIER TOKEN_COLON arg_type { $$ = arg_create($1,$3); }
    ;
 
 stmts: { $$.head = $$.tail = NULL; }
@@ -243,24 +246,26 @@ stmts: { $$.head = $$.tail = NULL; }
      ;
 
 stmt: stmt_other { $$ = $1; }
-    | IF LPAREN expr RPAREN stmt_block {
+    | TOKEN_IF TOKEN_LPAREN expr TOKEN_RPAREN stmt_block {
 	$$ = stmt_create(STMT_IF_ELSE,NULL,NULL,$3,NULL,$5,NULL);
     }
-    | IF LPAREN expr RPAREN stmt_matched_block ELSE stmt_block {
+    | TOKEN_IF TOKEN_LPAREN expr TOKEN_RPAREN stmt_matched_block TOKEN_ELSE
+      stmt_block {
 	$$ = stmt_create(STMT_IF_ELSE,NULL,NULL,$3,NULL,$5,$7);
     }
-    | FOR LPAREN expr SEMICOLON expr SEMICOLON expr RPAREN stmt_block {
+    | TOKEN_FOR TOKEN_LPAREN expr TOKEN_SEMICOLON expr TOKEN_SEMICOLON expr
+      TOKEN_RPAREN stmt_block {
 	$$ = stmt_create(STMT_FOR,NULL,$3,$5,$7,$9,NULL);
     }
     ;
 
 stmt_matched: stmt_other { $$ = $1; }
-            | IF LPAREN expr RPAREN stmt_matched_block ELSE
-              stmt_matched_block {
+            | TOKEN_IF TOKEN_LPAREN expr TOKEN_RPAREN stmt_matched_block
+              TOKEN_ELSE stmt_matched_block {
 	$$ = stmt_create(STMT_IF_ELSE,NULL,NULL,$3,NULL,$5,$7);
             }
-            | FOR LPAREN expr SEMICOLON expr SEMICOLON expr RPAREN
-              stmt_matched_block {
+            | TOKEN_FOR TOKEN_LPAREN expr TOKEN_SEMICOLON expr TOKEN_SEMICOLON
+              expr TOKEN_RPAREN stmt_matched_block {
 	$$ = stmt_create(STMT_FOR,NULL,$3,$5,$7,$9,NULL);
             }
             ;
@@ -268,19 +273,19 @@ stmt_matched: stmt_other { $$ = $1; }
 stmt_other: decl_var {
 	$$ = stmt_create(STMT_DECL,$1,NULL,NULL,NULL,NULL,NULL);
           }
-          | expr SEMICOLON {
+          | expr TOKEN_SEMICOLON {
 	$$ = stmt_create(STMT_EXPR,NULL,NULL,$1,NULL,NULL,NULL);
           }
-          | PRINT exprs SEMICOLON {
+          | TOKEN_PRINT exprs TOKEN_SEMICOLON {
 	$$ = stmt_create(STMT_PRINT,NULL,NULL,$2.head,NULL,NULL,NULL);
           }
-          | RETURN SEMICOLON {
+          | TOKEN_RETURN TOKEN_SEMICOLON {
 	$$ = stmt_create(STMT_RETURN,NULL,NULL,NULL,NULL,NULL,NULL);
           }
-          | RETURN expr SEMICOLON {
+          | TOKEN_RETURN expr TOKEN_SEMICOLON {
 	$$ = stmt_create(STMT_RETURN,NULL,NULL,$2,NULL,NULL,NULL);
           }
-          | LBRACE stmts RBRACE {
+          | TOKEN_LBRACE stmts TOKEN_RBRACE {
 	$$ = stmt_create(STMT_BLOCK,NULL,NULL,NULL,NULL,$2.head,NULL);
           }
           ;
