@@ -1,0 +1,9 @@
+// Too many elses
+
+foo: function void () = {
+	if ( a< b)
+		bar();
+	else bar();
+	else bar();
+}
+

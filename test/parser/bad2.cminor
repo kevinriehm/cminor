@@ -1,0 +1,6 @@
+// Empty statement
+
+foo: function void () = {
+	;
+}
+

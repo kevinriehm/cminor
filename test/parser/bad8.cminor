@@ -1,0 +1,6 @@
+// While loop (shouldn't exist according to the spec, even though 'while' is reserved)
+
+foo: function void () = {
+	while(true) {}
+}
+

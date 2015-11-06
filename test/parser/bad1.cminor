@@ -1,0 +1,4 @@
+// Bad function declaration
+
+foo: function void () = 5;
+

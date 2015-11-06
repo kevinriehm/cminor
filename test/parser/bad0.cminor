@@ -1,0 +1,3 @@
+// Bad variable declaration
+a: int = 5;
+

@@ -1,0 +1,6 @@
+// Invalid array declaration
+
+foo: function void ( ) = {
+	a: array [] integer;
+}
+

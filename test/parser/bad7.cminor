@@ -1,0 +1,6 @@
+// Non-expression where expression whould be
+
+foo: function void () = {
+	print {1, 2, 3};
+}
+

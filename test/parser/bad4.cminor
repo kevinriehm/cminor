@@ -1,0 +1,4 @@
+// Statement outside a function
+
+a = b;
+

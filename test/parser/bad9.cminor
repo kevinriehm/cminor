@@ -1,0 +1,6 @@
+// Increment of a non-incrementable value
+
+foo: function void () = {
+	a: integer = 5++;
+}
+
