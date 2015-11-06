@@ -22,7 +22,13 @@ all: cminor
 cminor: $(addprefix obj/,$(CM_OBJS)) | obj/
 	$(CC) $(CM_CFLAGS) -o $@ $^
 
-%/:
+dep/:
+	mkdir -p $@
+
+gen/:
+	mkdir -p $@
+
+obj/:
 	mkdir -p $@
 
 dep/%.d: gen/%.c | dep/
