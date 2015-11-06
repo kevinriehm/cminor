@@ -30,7 +30,7 @@ void yyerror(const char *);
 %}
 
 /* Makes the error messages sent to yyerror *much* more useful */
-%define parse.error verbose
+%error-verbose
 
 %union {
 	char c;
