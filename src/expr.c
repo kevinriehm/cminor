@@ -97,7 +97,11 @@ void expr_print(expr_t *expr) {
 
 		[EXPR_ASSIGN] = 8,
 
-		[EXPR_ARRAY] = 9,
+		// Expressions that should never need parentheses
+		// around them or their children
+		[EXPR_ARRAY]     = -1,
+		[EXPR_CALL]      = -1,
+		[EXPR_SUBSCRIPT] = -1,
 
 		[EXPR_BOOLEAN]   = -1,
 		[EXPR_CHARACTER] = -1,
@@ -128,8 +132,14 @@ void expr_print(expr_t *expr) {
 
 	bool needparen;
 
+	if(!expr)
+		return;
+
 	needparen = expr->parent
-		&& precedence[expr->op] > precedence[expr->parent->op];
+		&& precedence[expr->op] > 0
+		&& precedence[expr->parent->op] > 0
+		&& precedence[expr->op] > precedence[expr->parent->op]
+		|| expr->op == EXPR_NEGATE; // Avoid x - -y => x--y
 
 	while(expr) {
 		if(needparen)
@@ -224,7 +234,7 @@ void expr_print(expr_t *expr) {
 			putchar(')');
 
 		if(expr = expr->next)
-			printf(", ");
+			putchar(',');
 	}
 }
 

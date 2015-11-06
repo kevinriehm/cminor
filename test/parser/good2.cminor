@@ -1,0 +1,11 @@
+// Function declarations
+
+f0:function void();
+f0:function void()={}
+
+f1 :function	boolean	/*(a0: integer)*/ (  a1 : char) =
+{
+}
+			
+f2: function string(	_akjsdf:array[]boolean);
+

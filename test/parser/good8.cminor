@@ -1,0 +1,12 @@
+// Returning
+
+foo: function void () = {
+	return;
+	return 123412312;
+	return "ADFSAFDSA";
+	return 7>8;
+	return true;
+	return '\'';
+	return asfsjdlsa;
+}
+

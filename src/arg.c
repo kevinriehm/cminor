@@ -15,13 +15,17 @@ arg_t *arg_create(str_t name, type_t *type) {
 }
 
 void arg_print(arg_t *arg) {
+	putchar('(');
+
 	while(arg) {
-		printf("%s: ",arg->name.v);
+		printf(" %s: ",arg->name.v);
 
 		type_print(arg->type);
 
 		if(arg = arg->next)
 			printf(", ");
 	}
+
+	printf(" )");
 }
 

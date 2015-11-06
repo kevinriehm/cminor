@@ -16,39 +16,43 @@ type_t *type_create(type_type_t type, int64_t size, arg_t *args,
 }
 
 void type_print(type_t *type) {
-	while(type) {
-		switch(type->type) {
-		case TYPE_ARRAY:
-			printf("array [%"PRIi64"]",type->size);
-			break;
+	if(!type)
+		return;
 
-		case TYPE_BOOLEAN:
-			printf("boolean");
-			break;
+	switch(type->type) {
+	case TYPE_ARRAY:
+		if(type->size)
+			printf("array [%"PRIi64"] ",type->size);
+		else printf("array [] ");
+		type_print(type->subtype);
+		break;
 
-		case TYPE_CHARACTER:
-			printf("character");
-			break;
+	case TYPE_BOOLEAN:
+		printf("boolean");
+		break;
 
-		case TYPE_FUNCTION:
-			printf("function");
-			break;
+	case TYPE_CHARACTER:
+		printf("character");
+		break;
 
-		case TYPE_INTEGER:
-			printf("integer");
-			break;
+	case TYPE_FUNCTION:
+		printf("function ");
+		type_print(type->subtype);
+		putchar(' ');
+		arg_print(type->args);
+		break;
 
-		case TYPE_STRING:
-			printf("string");
-			break;
+	case TYPE_INTEGER:
+		printf("integer");
+		break;
 
-		case TYPE_VOID:
-			printf("void");
-			break;
-		}
+	case TYPE_STRING:
+		printf("string");
+		break;
 
-		if(type = type->subtype)
-			putchar(' ');
+	case TYPE_VOID:
+		printf("void");
+		break;
 	}
 }
 

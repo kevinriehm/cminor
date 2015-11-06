@@ -1,0 +1,9 @@
+// Printing
+
+foo: function void () = {
+	print;
+	print "134";
+	print 342, u < 88, 88888888888;
+	print foo, bar;
+}
+

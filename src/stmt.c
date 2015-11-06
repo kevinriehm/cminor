@@ -30,8 +30,8 @@ void stmt_print(stmt_t *stmt, int indent) {
 		switch(stmt->op) {
 		case STMT_BLOCK:
 			printf("{\n");
-			stmt_print(stmt->body,indent + 1);
-			printf("%s}\n",indentstr);
+			stmt_print(stmt->body,indent);
+			printf("%.*s}\n",indent - 1,indentstr);
 			break;
 
 		case STMT_DECL:
@@ -41,7 +41,7 @@ void stmt_print(stmt_t *stmt, int indent) {
 		case STMT_EXPR:
 			printf("%s",indentstr);
 			expr_print(stmt->expr);
-			putchar(';');
+			printf(";\n");
 			break;
 
 		case STMT_FOR:
@@ -51,38 +51,34 @@ void stmt_print(stmt_t *stmt, int indent) {
 			expr_print(stmt->expr);
 			putchar(';');
 			expr_print(stmt->next_expr);
-			printf(") {\n");
+			printf(") ");
 			stmt_print(stmt->body,indent + 1);
-			printf("%s}\n",indentstr);
 			break;
 
 		case STMT_IF_ELSE:
-			printf("if(");
+			printf("%sif(",indentstr);
 			expr_print(stmt->expr);
-			printf(") {\n");
+			printf(") ");
 			stmt_print(stmt->body,indent + 1);
 			if(stmt->else_body) {
-				printf("%s} else {\n",indentstr);
+				printf("%selse ",indentstr);
 				stmt_print(stmt->else_body,indent + 1);
 			}
-			printf("%s}\n",indentstr);
 			break;
 
 		case STMT_PRINT:
-			printf("%sprint ",indentstr);
+			printf("%sprint%s",indentstr,stmt->expr ? " " : "");
 			expr_print(stmt->expr);
 			printf(";\n");
 			break;
 
 		case STMT_RETURN:
-			printf("return%s",stmt->expr ? " " : "");
+			printf("%sreturn%s",indentstr,stmt->expr ? " " : "");
 			if(stmt->expr)
 				expr_print(stmt->expr);
 			printf(";\n");
 			break;
 		}
-
-		putchar('\n');
 
 		stmt = stmt->next;
 	}

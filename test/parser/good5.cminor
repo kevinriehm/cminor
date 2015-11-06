@@ -1,0 +1,37 @@
+// Everybody's favorite -- dangling else!
+
+foo: function void () = {
+	if(a < b) {
+		bar0();
+	} else if(b < c) {
+		bar1();
+	} else if(c < d) {
+		bar2();
+	} else {
+		bar3();
+	}
+
+	if(a < b)
+		baz0();
+	else if(b < c)
+		baz1();
+	else if(c < d)
+		baz2();
+	else baz2();
+
+	if(a < b)
+		if(b < c)
+			foo0();
+		else foo1();
+	else if(c < d)
+		if(d < e)
+			foo2();
+		// else fooX();
+	else foo3(); // Goes with if(d < e)
+
+	// Should be separate
+	if(e < f)
+		foo4();
+	else foo5();
+}
+

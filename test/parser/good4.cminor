@@ -1,0 +1,10 @@
+// Variable assignments
+a: integer = b;
+
+foo: function void () = {
+	b = c;
+	d = e;
+	e[5] = e[1];
+	foo = bar;
+}
+

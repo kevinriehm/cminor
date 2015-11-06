@@ -1,0 +1,18 @@
+// For loop
+
+foo: function void () = {
+	for(i = 0; i < 5; i++)
+		foo();
+
+	for(j = i*99; a[j] > 6; j = j - 1) {
+		bar();
+	}
+
+	for(bla = bla; bla == bla; bla = bla)
+		if(a < b)
+			foo1();
+		else if(b < c)
+			foo2();
+		else foo3();
+}
+

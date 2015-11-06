@@ -1,0 +1,30 @@
+// Variable declarations and expressions
+b0: boolean;
+b1: boolean = true;
+b2: boolean = false;
+c0: char;
+c1: char = 'a';
+c2: char = '\'';
+c3: char = '\n';
+c4: char = '\0';
+i0: integer;
+i1: integer = 1;
+i2: integer = 1- -1343241; // Make sure this doesn't turn into a '--' operator
+s0: string;
+s1: string = "abcd";
+s2: string = "0123\n4567\089ab";
+a0: array [3] boolean;
+a1: array [4] boolean = { true, false, 5 < 6, "abc" == "abc" };
+a2: array [3] char;
+a3: array [4] char = { c0, c1, c2, c3 };
+a4: array [3] integer;
+a5: array [4] integer = { 2*(5+6), 2 + 4*9, 2^2^2^2, i2-- };
+a6: array [3] string;
+a7: array [4] string = { "1", "2", "\n\n\n\0\0\0", "\'\"\"\"\'" };
+a8: array [2] array [2] integer;
+a9: array [3] array [3] integer = {
+	{ 4, 5, 6 },
+	{ i0++, -1^i1, (i0 = 4) - 99^i2-- },
+	{ -999999999999999, 2^16 - 1, 6 }
+};
+

@@ -26,11 +26,14 @@ void parse(FILE *);
 	(_list).tail = (_node); \
 } while(0)
 
-void yyerror(char *);
+void yyerror(const char *);
 %}
 
 /* Allows us to omit the prefix in the grammar, for conciseness */
 %define api.token.prefix {TOKEN_}
+
+/* Makes the error messages sent to yyerror *much* more useful */
+%define parse.error verbose
 
 %union {
 	char c;
@@ -53,8 +56,8 @@ void yyerror(char *);
 %type <arg> arg
 %type <decl> decl decl_func decl_var
 %type <expr> expr expr0 expr1 expr2 expr3 expr4 expr5 expr6 expr7 array lvalue
-%type <stmt> stmt stmt_matched stmt_other
-%type <type> type
+%type <stmt> stmt stmt_matched stmt_other stmt_block stmt_matched_block
+%type <type> atomic_type func_type arg_type var_type
 
 %type <args> args args_nonempty
 %type <decls> decls
@@ -99,37 +102,52 @@ decl: decl_func { $$ = $1; }
     | decl_var { $$ = $1; }
     ;
 
-decl_func: IDENTIFIER COLON FUNCTION type args SEMICOLON {
-	$$ = decl_create(
-		$1,type_create(TYPE_FUNCTION,0,$5.head,$4),NULL,NULL,NULL);
+decl_func: IDENTIFIER COLON func_type SEMICOLON {
+	$$ = decl_create($1,$3,NULL,NULL);
          }
-         | IDENTIFIER COLON FUNCTION type args EQUAL LBRACE stmts RBRACE {
-	$$ = decl_create($1,
-		type_create(TYPE_FUNCTION,0,$5.head,$4),$5.head,NULL,$8.head);
+         | IDENTIFIER COLON func_type EQUAL LBRACE stmts RBRACE {
+	$$ = decl_create($1,$3,NULL,
+		stmt_create(STMT_BLOCK,NULL,NULL,NULL,NULL,$6.head,NULL));
          }
          ;
 
-decl_var: IDENTIFIER COLON type SEMICOLON {
-	$$ = decl_create($1,$3,NULL,NULL,NULL);
+decl_var: IDENTIFIER COLON var_type SEMICOLON {
+	$$ = decl_create($1,$3,NULL,NULL);
         }
-        | IDENTIFIER COLON type EQUAL expr SEMICOLON {
-	$$ = decl_create($1,$3,NULL,$5,NULL);
+        | IDENTIFIER COLON var_type EQUAL expr SEMICOLON {
+	$$ = decl_create($1,$3,$5,NULL);
         }
-        | IDENTIFIER COLON type EQUAL array SEMICOLON {
-	$$ = decl_create($1,$3,NULL,$5,NULL);
+        | IDENTIFIER COLON var_type EQUAL array SEMICOLON {
+	$$ = decl_create($1,$3,$5,NULL);
         }
         ;
 
-type: BOOLEAN { $$ = type_create(TYPE_BOOLEAN,0,NULL,NULL); }
-    | CHAR { $$ = type_create(TYPE_CHARACTER,0,NULL,NULL); }
-    | INTEGER { $$ = type_create(TYPE_INTEGER,0,NULL,NULL); }
-    | STRING { $$ = type_create(TYPE_STRING,0,NULL,NULL); }
-    | VOID { $$ = type_create(TYPE_VOID,0,NULL,NULL); }
-    | ARRAY LBRACKET RBRACKET type { $$ = type_create(TYPE_ARRAY,0,NULL,$4); }
-    | ARRAY LBRACKET INTEGER_LITERAL RBRACKET type {
+atomic_type: BOOLEAN { $$ = type_create(TYPE_BOOLEAN,0,NULL,NULL); }
+           | CHAR { $$ = type_create(TYPE_CHARACTER,0,NULL,NULL); }
+           | INTEGER { $$ = type_create(TYPE_INTEGER,0,NULL,NULL); }
+           | STRING { $$ = type_create(TYPE_STRING,0,NULL,NULL); }
+           ;
+
+func_type: FUNCTION atomic_type args {
+	$$ = type_create(TYPE_FUNCTION,0,$3.head,$2);
+         }
+         | FUNCTION VOID args {
+	$$ = type_create(
+		TYPE_FUNCTION,0,$3.head,type_create(TYPE_VOID,0,NULL,NULL));
+         }
+         ;
+
+arg_type: atomic_type { $$ = $1; }
+        | ARRAY LBRACKET RBRACKET arg_type {
+	$$ = type_create(TYPE_ARRAY,0,NULL,$4);
+        }
+        ;
+
+var_type: atomic_type { $$ = $1; }
+        | ARRAY LBRACKET INTEGER_LITERAL RBRACKET var_type {
 	$$ = type_create(TYPE_ARRAY,$3,NULL,$5);
-    }
-    ;
+        }
+        ;
 
 exprs: { $$.head = $$.tail = NULL; }
      | exprs_nonempty { $$ = $1; }
@@ -194,8 +212,8 @@ expr0: TRUE { $$ = expr_create_boolean(true); }
      ;
 
 lvalue: IDENTIFIER { $$ = expr_create_reference($1); }
-      | IDENTIFIER LBRACKET expr RBRACKET {
-	$$ = expr_create(EXPR_SUBSCRIPT,expr_create_reference($1),$3);
+      | lvalue LBRACKET expr RBRACKET {
+	$$ = expr_create(EXPR_SUBSCRIPT,$1,$3);
       }
       ;
 
@@ -217,7 +235,7 @@ args_nonempty: arg { $$.head = $$.tail = $1; }
              | args_nonempty COMMA arg { APPEND($1,$3); $$ = $1; }
              ;
 
-arg: IDENTIFIER COLON type { $$ = arg_create($1,$3); }
+arg: IDENTIFIER COLON arg_type { $$ = arg_create($1,$3); }
    ;
 
 stmts: { $$.head = $$.tail = NULL; }
@@ -225,23 +243,24 @@ stmts: { $$.head = $$.tail = NULL; }
      ;
 
 stmt: stmt_other { $$ = $1; }
-    | IF LPAREN expr RPAREN stmt {
+    | IF LPAREN expr RPAREN stmt_block {
 	$$ = stmt_create(STMT_IF_ELSE,NULL,NULL,$3,NULL,$5,NULL);
     }
-    | IF LPAREN expr RPAREN stmt_matched ELSE stmt {
+    | IF LPAREN expr RPAREN stmt_matched_block ELSE stmt_block {
 	$$ = stmt_create(STMT_IF_ELSE,NULL,NULL,$3,NULL,$5,$7);
     }
-    | FOR LPAREN expr SEMICOLON expr SEMICOLON expr RPAREN stmt {
+    | FOR LPAREN expr SEMICOLON expr SEMICOLON expr RPAREN stmt_block {
 	$$ = stmt_create(STMT_FOR,NULL,$3,$5,$7,$9,NULL);
     }
     ;
 
 stmt_matched: stmt_other { $$ = $1; }
-            | IF LPAREN expr RPAREN stmt_matched ELSE stmt_matched {
+            | IF LPAREN expr RPAREN stmt_matched_block ELSE
+              stmt_matched_block {
 	$$ = stmt_create(STMT_IF_ELSE,NULL,NULL,$3,NULL,$5,$7);
             }
             | FOR LPAREN expr SEMICOLON expr SEMICOLON expr RPAREN
-              stmt_matched {
+              stmt_matched_block {
 	$$ = stmt_create(STMT_FOR,NULL,$3,$5,$7,$9,NULL);
             }
             ;
@@ -261,12 +280,27 @@ stmt_other: decl_var {
           | RETURN expr SEMICOLON {
 	$$ = stmt_create(STMT_RETURN,NULL,NULL,$2,NULL,NULL,NULL);
           }
-          | LBRACE stmts RBRACE { $$ = $2.head; }
+          | LBRACE stmts RBRACE {
+	$$ = stmt_create(STMT_BLOCK,NULL,NULL,NULL,NULL,$2.head,NULL);
+          }
           ;
+
+stmt_block: stmt {
+	// This just makes pretty printing a bit simpler
+	$$ = $1->op == STMT_BLOCK ? $1
+		: stmt_create(STMT_BLOCK,NULL,NULL,NULL,NULL,$1,NULL);
+          }
+          ;
+
+stmt_matched_block: stmt_matched {
+	$$ = $1->op == STMT_BLOCK ? $1
+		: stmt_create(STMT_BLOCK,NULL,NULL,NULL,NULL,$1,NULL);
+                  }
+                  ;
 
 %%
 
-void yyerror(char *msg) {
+void yyerror(const char *msg) {
 	parse_die("line %i: %s",currentline,msg);
 }
 

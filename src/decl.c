@@ -7,12 +7,10 @@
 #include "stmt.h"
 #include "type.h"
 
-decl_t *decl_create(str_t name, type_t *type, arg_t *args, expr_t *value,
-	stmt_t *body) {
+decl_t *decl_create(str_t name, type_t *type, expr_t *value, stmt_t *body) {
 	return new(decl_t,{
 		.name = name,
 		.type = type,
-		.args = args,
 		.value = value,
 		.body = body,
 		.next = NULL
@@ -31,20 +29,13 @@ void decl_print(decl_t *decl, int indent) {
 
 		type_print(decl->type);
 
-		if(decl->body) {
-			printf(" ( ");
-			arg_print(decl->args);
-			printf(" )");
-		}
-
 		if(decl->value) {
 			printf(" = ");
 			expr_print(decl->value);
 			printf(";\n");
 		} else if(decl->body) {
-			printf(" = {\n");
+			printf(" = ");
 			stmt_print(decl->body,indent + 1);
-			printf("}\n");
 		} else printf(";\n");
 
 		decl = decl->next;

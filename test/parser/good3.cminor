@@ -1,0 +1,7 @@
+// Array variables vs. array arguments
+a: array [10] integer = { 5, 5, 5, 5, 5, 5, 5, 5, 5, 5 };
+
+foo: function void ( a: array [/* Nothing should print out here */] integer ) = {
+	b: array [1] integer;
+}
+
