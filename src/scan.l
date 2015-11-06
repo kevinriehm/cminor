@@ -22,7 +22,7 @@ static char parse_escaped_char(char *);
 
 alpha [A-Za-z]
 digit [0-9]
-echar ([^\"']|\\.)
+echar ([^\\"']|\\.)
 
 %%
 
