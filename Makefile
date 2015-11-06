@@ -2,8 +2,8 @@ CM_CSRC = cminor.c arg.c decl.c expr.c stmt.c type.c util.c
 CM_LSRC = scan.l
 CM_YSRC = parse.y
 
-CM_CFLAGS = -g -Wall -Wextra -Wno-missing-field-initializers -Wno-parentheses \
-	-std=c99 -D_POSIX_C_SOURCE=200809L -I. -Isrc $(CFLAGS)
+CM_CFLAGS = -g -Wall -Wextra -pedantic -Wno-missing-field-initializers \
+	-Wno-parentheses -std=c99 -D_POSIX_C_SOURCE=200809L -I. -Isrc $(CFLAGS)
 
 CM_DEPS = $(CM_CSRC:.c=.d) $(CM_LSRC:.l=.yy.d) $(CM_YSRC:.y=.tab.d)
 CM_OBJS = $(CM_CSRC:.c=.o) $(CM_LSRC:.l=.yy.o) $(CM_YSRC:.y=.tab.o)
@@ -59,5 +59,5 @@ clean:
 	rm -rf obj
 
 test: cminor
-	@test/run_tests.sh
+	@bash test/run_tests.sh
 

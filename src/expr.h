@@ -41,17 +41,13 @@ typedef enum {
 typedef struct expr {
 	expr_op_t op;
 
-	union {
-		bool b;
-		char c;
-		int64_t i;
-		str_t s;
+	bool b;
+	char c;
+	int64_t i;
+	str_t s;
 
-		struct {
-			struct expr *left;
-			struct expr *right;
-		};
-	};
+	struct expr *left;
+	struct expr *right;
 
 	struct expr *parent;
 	struct expr *next;
