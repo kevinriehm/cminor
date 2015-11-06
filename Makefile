@@ -53,5 +53,5 @@ clean:
 	rm -rf obj
 
 test: cminor
-	@./run_tests.sh
+	@test/run_tests.sh
 
