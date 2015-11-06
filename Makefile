@@ -14,7 +14,7 @@ DBUILD = $(CC) $(CM_CFLAGS) -MM -MG -MT obj/$*.o -MF $@ $<
 LEX = flex
 YACC = bison
 
-.PHONY: clean
+.PHONY: clean test
 .PRECIOUS: %/ gen/%.yy.c
 
 all: cminor
@@ -51,4 +51,7 @@ clean:
 	rm -rf dep
 	rm -rf gen
 	rm -rf obj
+
+test: cminor
+	@./run_tests.sh
 
