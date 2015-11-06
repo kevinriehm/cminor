@@ -29,7 +29,7 @@ echar ([^\"']|\\.)
 \n     currentline++;
 [ \t]+ ;
 
-"//".*\n         ;
+"//".*\n         currentline++;
 "/*"             BEGIN COMMENT;
 <COMMENT>.       ;
 <COMMENT>\n      currentline++;
