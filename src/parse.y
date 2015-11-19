@@ -52,7 +52,8 @@ void yyerror(const char *);
 
 %type <arg> arg
 %type <decl> decl decl_func decl_var
-%type <expr> expr expr0 expr1 expr2 expr3 expr4 expr5 expr6 expr7 array lvalue
+%type <expr> expr expr0 expr1 expr2 expr3 expr4 expr5 expr6 expr7 optional_expr
+%type <expr> array lvalue
 %type <stmt> stmt stmt_matched stmt_other stmt_block stmt_matched_block
 %type <type> atomic_type func_type arg_type var_type
 
@@ -212,6 +213,10 @@ expr0: TOKEN_TRUE { $$ = expr_create_boolean(true); }
      | TOKEN_LPAREN expr TOKEN_RPAREN { $$ = $2; }
      ;
 
+optional_expr: { $$ = NULL; }
+             | expr { $$ = $1; }
+             ;
+
 lvalue: TOKEN_IDENTIFIER { $$ = expr_create_reference($1); }
       | lvalue TOKEN_LBRACKET expr TOKEN_RBRACKET {
 	$$ = expr_create(EXPR_SUBSCRIPT,$1,$3);
@@ -253,8 +258,8 @@ stmt: stmt_other { $$ = $1; }
       stmt_block {
 	$$ = stmt_create(STMT_IF_ELSE,NULL,NULL,$3,NULL,$5,$7);
     }
-    | TOKEN_FOR TOKEN_LPAREN expr TOKEN_SEMICOLON expr TOKEN_SEMICOLON expr
-      TOKEN_RPAREN stmt_block {
+    | TOKEN_FOR TOKEN_LPAREN optional_expr TOKEN_SEMICOLON optional_expr
+      TOKEN_SEMICOLON optional_expr TOKEN_RPAREN stmt_block {
 	$$ = stmt_create(STMT_FOR,NULL,$3,$5,$7,$9,NULL);
     }
     ;
@@ -264,8 +269,9 @@ stmt_matched: stmt_other { $$ = $1; }
               TOKEN_ELSE stmt_matched_block {
 	$$ = stmt_create(STMT_IF_ELSE,NULL,NULL,$3,NULL,$5,$7);
             }
-            | TOKEN_FOR TOKEN_LPAREN expr TOKEN_SEMICOLON expr TOKEN_SEMICOLON
-              expr TOKEN_RPAREN stmt_matched_block {
+            | TOKEN_FOR TOKEN_LPAREN optional_expr TOKEN_SEMICOLON
+              optional_expr TOKEN_SEMICOLON optional_expr TOKEN_RPAREN
+              stmt_matched_block {
 	$$ = stmt_create(STMT_FOR,NULL,$3,$5,$7,$9,NULL);
             }
             ;

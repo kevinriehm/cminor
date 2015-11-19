@@ -1,0 +1,7 @@
+// Declaration in a blockless if-statement
+
+foo: function void () = {
+	if(x < 0)
+		int i = 0;
+}
+
