@@ -1,0 +1,7 @@
+// Function prototypes
+
+foo: function void ();
+
+foo: function void () = {}
+
+foo: function void ();

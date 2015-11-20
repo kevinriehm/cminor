@@ -1,0 +1,13 @@
+// Multiple functions
+
+foo: function void (x: integer);
+
+bar: function void (x: integer) = {
+	y: integer;
+	foo(y);
+}
+
+foo: function void (x: integer) = {
+	bar(x);
+}
+

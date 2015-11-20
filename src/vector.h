@@ -3,13 +3,13 @@
 
 #include <stdlib.h>
 
-#define vector_t(T) T##_vector_t
+#define vector_t(_T) _T##_vector_t
 
-#define typedef_vector_t(T) \
+#define typedef_vector_t(_T) \
 typedef struct { \
 	size_t c, n; \
-	T *v; \
-} vector_t(T)
+	_T *v; \
+} vector_t(_T)
 
 #define vector_init(_this) do { \
 	(_this).c = (_this).n = 0; \

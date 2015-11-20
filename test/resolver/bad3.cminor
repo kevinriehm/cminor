@@ -1,0 +1,12 @@
+// Sibling declarations
+
+foo: function void () = {
+	{
+		x: integer;
+	}
+
+	{
+		x;
+	}
+}
+

@@ -1,0 +1,6 @@
+// Incompatible prototype
+
+foo: function void (x: integer);
+
+foo: function void (x: integer, y: boolean) = {}
+

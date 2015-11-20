@@ -110,7 +110,7 @@ while    TOKEN(WHILE);
 	if(yylval.s.n >= 255)
 		scan_die("string literals cannot be more than 256 characters "
 			"(including the terminating null byte)");
-	str_append_c(yylval.s,parse_escaped_char(yytext));
+	str_append_c(&yylval.s,parse_escaped_char(yytext));
 }
 <STRING>\n         scan_die("string literals cannot be more than one line");
 <STRING><<EOF>>    scan_die("unterminated string");

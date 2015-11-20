@@ -15,6 +15,7 @@ typedef struct decl {
 decl_t *decl_create(str_t, struct type *, struct expr *, struct stmt *);
 
 void decl_print(decl_t *, int);
+void decl_resolve(decl_t *);
 
 #endif
 

@@ -1,0 +1,6 @@
+// Just plain old undefined
+
+foo: function void () = {
+	xyzzy;
+}
+

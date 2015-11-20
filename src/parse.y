@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #include "arg.h"
+#include "cminor.h"
 #include "decl.h"
 #include "expr.h"
 #include "scan.h"
@@ -13,6 +14,8 @@
 }
 
 %code provides {
+decl_t *parse_ast;
+
 void parse(FILE *);
 }
 
@@ -54,7 +57,7 @@ void yyerror(const char *);
 %type <decl> decl decl_func decl_var
 %type <expr> expr expr0 expr1 expr2 expr3 expr4 expr5 expr6 expr7 optional_expr
 %type <expr> array lvalue
-%type <stmt> stmt stmt_matched stmt_other stmt_block stmt_matched_block
+%type <stmt> stmt stmt_decl stmt_non_decl stmt_non_decl_block stmt_non_decl_matched stmt_non_decl_other stmt_non_decl_matched_block
 %type <type> atomic_type func_type arg_type var_type
 
 %type <args> args args_nonempty
@@ -89,7 +92,12 @@ void yyerror(const char *);
 
 %%
 
-root: decls { decl_print($1.head,0); }
+root: decls {
+	parse_ast = $1.head;
+
+	if(cminor_mode == MODE_PARSE)
+		decl_print(parse_ast,0);
+    }
     ;
 
 decls: { $$.head = $$.tail = NULL; }
@@ -250,64 +258,70 @@ stmts: { $$.head = $$.tail = NULL; }
      | stmts stmt { APPEND($1,$2); $$ = $1; }
      ;
 
-stmt: stmt_other { $$ = $1; }
-    | TOKEN_IF TOKEN_LPAREN expr TOKEN_RPAREN stmt_block {
-	$$ = stmt_create(STMT_IF_ELSE,NULL,NULL,$3,NULL,$5,NULL);
-    }
-    | TOKEN_IF TOKEN_LPAREN expr TOKEN_RPAREN stmt_matched_block TOKEN_ELSE
-      stmt_block {
-	$$ = stmt_create(STMT_IF_ELSE,NULL,NULL,$3,NULL,$5,$7);
-    }
-    | TOKEN_FOR TOKEN_LPAREN optional_expr TOKEN_SEMICOLON optional_expr
-      TOKEN_SEMICOLON optional_expr TOKEN_RPAREN stmt_block {
-	$$ = stmt_create(STMT_FOR,NULL,$3,$5,$7,$9,NULL);
-    }
+stmt: stmt_decl { $$ = $1; }
+    | stmt_non_decl { $$ = $1; }
     ;
 
-stmt_matched: stmt_other { $$ = $1; }
-            | TOKEN_IF TOKEN_LPAREN expr TOKEN_RPAREN stmt_matched_block
-              TOKEN_ELSE stmt_matched_block {
-	$$ = stmt_create(STMT_IF_ELSE,NULL,NULL,$3,NULL,$5,$7);
-            }
-            | TOKEN_FOR TOKEN_LPAREN optional_expr TOKEN_SEMICOLON
-              optional_expr TOKEN_SEMICOLON optional_expr TOKEN_RPAREN
-              stmt_matched_block {
-	$$ = stmt_create(STMT_FOR,NULL,$3,$5,$7,$9,NULL);
-            }
-            ;
-
-stmt_other: decl_var {
+stmt_decl: decl_var {
 	$$ = stmt_create(STMT_DECL,$1,NULL,NULL,NULL,NULL,NULL);
-          }
-          | expr TOKEN_SEMICOLON {
+       }
+       ;
+
+stmt_non_decl: stmt_non_decl_other { $$ = $1; }
+       | TOKEN_IF TOKEN_LPAREN expr TOKEN_RPAREN stmt_non_decl_block {
+	$$ = stmt_create(STMT_IF_ELSE,NULL,NULL,$3,NULL,$5,NULL);
+       }
+       | TOKEN_IF TOKEN_LPAREN expr TOKEN_RPAREN stmt_non_decl_matched_block
+         TOKEN_ELSE stmt_non_decl_block {
+	$$ = stmt_create(STMT_IF_ELSE,NULL,NULL,$3,NULL,$5,$7);
+       }
+       | TOKEN_FOR TOKEN_LPAREN optional_expr TOKEN_SEMICOLON optional_expr
+         TOKEN_SEMICOLON optional_expr TOKEN_RPAREN stmt_non_decl_block {
+	$$ = stmt_create(STMT_FOR,NULL,$3,$5,$7,$9,NULL);
+       }
+       ;
+
+stmt_non_decl_matched: stmt_non_decl_other { $$ = $1; }
+       | TOKEN_IF TOKEN_LPAREN expr TOKEN_RPAREN stmt_non_decl_matched_block
+         TOKEN_ELSE stmt_non_decl_matched_block {
+	$$ = stmt_create(STMT_IF_ELSE,NULL,NULL,$3,NULL,$5,$7);
+       }
+       | TOKEN_FOR TOKEN_LPAREN optional_expr TOKEN_SEMICOLON optional_expr
+         TOKEN_SEMICOLON optional_expr TOKEN_RPAREN stmt_non_decl_matched_block
+         {
+	$$ = stmt_create(STMT_FOR,NULL,$3,$5,$7,$9,NULL);
+       }
+       ;
+
+stmt_non_decl_other: expr TOKEN_SEMICOLON {
 	$$ = stmt_create(STMT_EXPR,NULL,NULL,$1,NULL,NULL,NULL);
-          }
-          | TOKEN_PRINT exprs TOKEN_SEMICOLON {
+       }
+       | TOKEN_PRINT exprs TOKEN_SEMICOLON {
 	$$ = stmt_create(STMT_PRINT,NULL,NULL,$2.head,NULL,NULL,NULL);
-          }
-          | TOKEN_RETURN TOKEN_SEMICOLON {
+       }
+       | TOKEN_RETURN TOKEN_SEMICOLON {
 	$$ = stmt_create(STMT_RETURN,NULL,NULL,NULL,NULL,NULL,NULL);
-          }
-          | TOKEN_RETURN expr TOKEN_SEMICOLON {
+       }
+       | TOKEN_RETURN expr TOKEN_SEMICOLON {
 	$$ = stmt_create(STMT_RETURN,NULL,NULL,$2,NULL,NULL,NULL);
-          }
-          | TOKEN_LBRACE stmts TOKEN_RBRACE {
+       }
+       | TOKEN_LBRACE stmts TOKEN_RBRACE {
 	$$ = stmt_create(STMT_BLOCK,NULL,NULL,NULL,NULL,$2.head,NULL);
-          }
-          ;
+       }
+       ;
 
-stmt_block: stmt {
-	// This just makes pretty printing a bit simpler
+stmt_non_decl_block: stmt_non_decl {
+	// This just makes pretty printing and scoping a bit simpler
 	$$ = $1->op == STMT_BLOCK ? $1
 		: stmt_create(STMT_BLOCK,NULL,NULL,NULL,NULL,$1,NULL);
-          }
-          ;
+       }
+       ;
 
-stmt_matched_block: stmt_matched {
+stmt_non_decl_matched_block: stmt_non_decl_matched {
 	$$ = $1->op == STMT_BLOCK ? $1
 		: stmt_create(STMT_BLOCK,NULL,NULL,NULL,NULL,$1,NULL);
-                  }
-                  ;
+       }
+       ;
 
 %%
 

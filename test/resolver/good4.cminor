@@ -1,0 +1,14 @@
+// Complicated expressions and miscellaneous statements
+
+a: array [4] integer = {4, 3, 2, 1};
+x: integer = 5;
+y: integer = 6*x + x - a[2];
+
+foo: function string (abc: string, def: boolean) = {
+	a: array [9] integer;
+
+	print abc, def, a[x], "hi", a[y], 5^(3-6*x---y) > a[0];
+
+	return abc;
+}
+

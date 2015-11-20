@@ -27,6 +27,7 @@ stmt_t *stmt_create(stmt_op_t, struct decl *, struct expr *, struct expr *,
 	struct expr *, stmt_t *, stmt_t *);
 
 void stmt_print(stmt_t *, int);
+void stmt_resolve(stmt_t *);
 
 #endif
 

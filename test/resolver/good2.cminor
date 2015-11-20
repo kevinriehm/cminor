@@ -1,0 +1,38 @@
+// Lots of declarations
+
+x0: integer;
+x1: integer;
+x2: integer;
+x3: integer;
+x4: integer;
+x5: integer;
+x6: integer;
+x7: integer;
+x8: integer;
+x9: integer;
+xa: integer;
+xb: integer;
+xc: integer;
+xd: integer;
+xe: integer;
+xf: integer;
+
+foo: function void () = {
+	x0; x0: integer; x0;
+	x1; x1: integer; x1;
+	x2; x2: integer; x2;
+	x3; x3: integer; x3;
+	x4; x4: integer; x4;
+	x5; x5: integer; x5;
+	x6; x6: integer; x6;
+	x7; x7: integer; x7;
+	x8; x8: integer; x8;
+	x9; x9: integer; x9;
+	xa; xa: integer; xa;
+	xb; xb: integer; xb;
+	xc; xc: integer; xc;
+	xd; xd: integer; xd;
+	xe; xe: integer; xe;
+	xf; xf: integer; xf;
+}
+

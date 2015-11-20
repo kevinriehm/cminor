@@ -1,6 +1,8 @@
 #ifndef ARG_H
 #define ARG_H
 
+#include <stdbool.h>
+
 #include "str.h"
 
 typedef struct arg {
@@ -11,6 +13,8 @@ typedef struct arg {
 } arg_t;
 
 arg_t *arg_create(str_t, struct type *);
+
+bool arg_eq(arg_t *, arg_t *);
 
 void arg_print(arg_t *);
 

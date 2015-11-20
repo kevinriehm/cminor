@@ -46,6 +46,8 @@ typedef struct expr {
 	int64_t i;
 	str_t s;
 
+	struct symbol *symbol;
+
 	struct expr *left;
 	struct expr *right;
 
@@ -61,6 +63,7 @@ expr_t *expr_create_reference(str_t);
 expr_t *expr_create_string(str_t);
 
 void expr_print(expr_t *);
+void expr_resolve(expr_t *);
 
 #endif
 

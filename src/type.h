@@ -1,6 +1,7 @@
 #ifndef TYPE_H
 #define TYPE_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 typedef enum {
@@ -22,6 +23,10 @@ typedef struct type {
 } type_t;
 
 type_t *type_create(type_type_t, int64_t, struct arg *, type_t *);
+
+bool type_is_function(type_t *);
+
+bool type_eq(type_t *, type_t *);
 
 void type_print(type_t *);
 

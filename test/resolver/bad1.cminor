@@ -1,0 +1,5 @@
+// Redeclaration
+
+x: integer;
+x: integer;
+

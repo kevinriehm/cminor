@@ -1,0 +1,6 @@
+// Function arguments and local variables
+
+foo: function void (x: integer) = {
+	x: integer;
+}
+

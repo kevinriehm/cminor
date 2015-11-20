@@ -3,9 +3,14 @@
 declare -A passes
 declare -A totals
 
-declare -A mode_param=([scanner]=scan [parser]=parse)
+declare -A mode_param=(
+	[resolver]=resolve
+	[scanner]=scan
+	[typechecker]=typecheck
+	[parser]=parse
+)
 
-for mode in scanner parser
+for mode in resolver scanner typechecker parser
 do
 	for type in good bad
 	do

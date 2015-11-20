@@ -2,6 +2,7 @@
 
 #include "expr.h"
 #include "decl.h"
+#include "scope.h"
 #include "stmt.h"
 #include "pp_util.h"
 
@@ -19,68 +20,111 @@ stmt_t *stmt_create(stmt_op_t op, decl_t *decl, expr_t *init_expr,
 	});
 }
 
-void stmt_print(stmt_t *stmt, int indent) {
+void stmt_print(stmt_t *this, int indent) {
 	char indentstr[indent + 1];
 
 	for(int i = 0; i < indent; i++)
 		indentstr[i] = '\t';
 	indentstr[indent] = '\0';
 
-	while(stmt) {
-		switch(stmt->op) {
+	while(this) {
+		switch(this->op) {
 		case STMT_BLOCK:
 			printf("{\n");
-			stmt_print(stmt->body,indent);
+			stmt_print(this->body,indent);
 			printf("%.*s}\n",indent - 1,indentstr);
 			break;
 
 		case STMT_DECL:
-			decl_print(stmt->decl,indent);
+			decl_print(this->decl,indent);
 			break;
 
 		case STMT_EXPR:
 			printf("%s",indentstr);
-			expr_print(stmt->expr);
+			expr_print(this->expr);
 			printf(";\n");
 			break;
 
 		case STMT_FOR:
 			printf("%sfor(",indentstr);
-			expr_print(stmt->init_expr);
+			expr_print(this->init_expr);
 			putchar(';');
-			expr_print(stmt->expr);
+			expr_print(this->expr);
 			putchar(';');
-			expr_print(stmt->next_expr);
+			expr_print(this->next_expr);
 			printf(") ");
-			stmt_print(stmt->body,indent + 1);
+			stmt_print(this->body,indent + 1);
 			break;
 
 		case STMT_IF_ELSE:
 			printf("%sif(",indentstr);
-			expr_print(stmt->expr);
+			expr_print(this->expr);
 			printf(") ");
-			stmt_print(stmt->body,indent + 1);
-			if(stmt->else_body) {
+			stmt_print(this->body,indent + 1);
+			if(this->else_body) {
 				printf("%selse ",indentstr);
-				stmt_print(stmt->else_body,indent + 1);
+				stmt_print(this->else_body,indent + 1);
 			}
 			break;
 
 		case STMT_PRINT:
-			printf("%sprint%s",indentstr,stmt->expr ? " " : "");
-			expr_print(stmt->expr);
+			printf("%sprint%s",indentstr,this->expr ? " " : "");
+			expr_print(this->expr);
 			printf(";\n");
 			break;
 
 		case STMT_RETURN:
-			printf("%sreturn%s",indentstr,stmt->expr ? " " : "");
-			if(stmt->expr)
-				expr_print(stmt->expr);
+			printf("%sreturn%s",indentstr,this->expr ? " " : "");
+			if(this->expr)
+				expr_print(this->expr);
 			printf(";\n");
 			break;
 		}
 
-		stmt = stmt->next;
+		this = this->next;
+	}
+}
+
+void stmt_resolve(stmt_t *this) {
+	while(this) {
+		switch(this->op) {
+		case STMT_BLOCK:
+			scope_enter(false);
+			stmt_resolve(this->body);
+			scope_leave();
+			break;
+
+		case STMT_DECL:
+			decl_resolve(this->decl);
+			break;
+
+		case STMT_EXPR:
+			expr_resolve(this->expr);
+			break;
+
+		case STMT_FOR:
+			expr_resolve(this->init_expr);
+			expr_resolve(this->expr);
+			expr_resolve(this->next_expr);
+			stmt_resolve(this->body);
+			break;
+
+		case STMT_IF_ELSE:
+			expr_resolve(this->expr);
+			stmt_resolve(this->body);
+			stmt_resolve(this->else_body);
+			break;
+
+		case STMT_PRINT:
+			expr_resolve(this->expr);
+			break;
+
+		case STMT_RETURN:
+			expr_resolve(this->expr);
+			break;
+		}
+
+		this = this->next;
 	}
 }
 

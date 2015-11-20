@@ -14,15 +14,27 @@ arg_t *arg_create(str_t name, type_t *type) {
 	});
 }
 
-void arg_print(arg_t *arg) {
+bool arg_eq(arg_t *a, arg_t *b) {
+	while(a && b) {
+		if(!type_eq(a->type,b->type))
+			return false;
+
+		a = a->next;
+		b = b->next;
+	}
+
+	return !a && !b;
+}
+
+void arg_print(arg_t *this) {
 	putchar('(');
 
-	while(arg) {
-		printf(" %s: ",arg->name.v);
+	while(this) {
+		printf(" %s: ",this->name.v);
 
-		type_print(arg->type);
+		type_print(this->type);
 
-		if(arg = arg->next)
+		if(this = this->next)
 			printf(", ");
 	}
 

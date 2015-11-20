@@ -1,4 +1,5 @@
-CM_CSRC = cminor.c arg.c decl.c expr.c stmt.c type.c util.c
+CM_CSRC = cminor.c arg.c decl.c expr.c htable.c resolve.c scope.c stmt.c \
+	symbol.c str.c type.c util.c
 CM_LSRC = scan.l
 CM_YSRC = parse.y
 

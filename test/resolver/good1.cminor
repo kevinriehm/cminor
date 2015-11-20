@@ -1,0 +1,36 @@
+// Scoping
+
+x: integer;
+
+foo: function void (x: integer) = { x; }
+
+bar: function void () = {
+	x: integer;
+	x;
+
+	if(x) {
+		x: integer;
+		x;
+	}
+
+	for(x; x; x) {
+		x: integer;
+		x;
+	}
+
+	{
+		x: integer;
+		x;
+
+		if(x) {
+			x: integer;
+			x;
+
+			for(x; x; x) {
+				x: integer;
+				x;
+			}
+		}
+	}
+}
+
