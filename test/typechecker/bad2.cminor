@@ -1,0 +1,37 @@
+// Logical AND
+
+b: boolean = 5 && true;
+
+// Logical OR
+
+b: boolean = '"' || 5;
+
+// Assignment
+
+foo: function void () = {
+	x: integer = 5;
+	y: boolean = true;
+	x = y;
+}
+
+// Function call
+
+foo: function void (x: integer);
+
+bar: function void () = {
+	foo();
+}
+
+// Increment non-integer
+
+foo: function void () = {
+	x: string;
+	x++;
+}
+
+// Increment non-lvalue
+
+foo: function void () = {
+	5++;
+}
+

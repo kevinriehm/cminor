@@ -35,7 +35,7 @@ do
 				passes[$key]=$((passes[$key] + 1))
 			else
 				echo FAILED: $f
-				echo $output
+				echo "$output"
 			fi
 		done
 	done

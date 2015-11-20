@@ -9,5 +9,7 @@ enum {
 	MODE_TYPECHECK
 } cminor_mode;
 
+extern int cminor_errorcount;
+
 #endif
 

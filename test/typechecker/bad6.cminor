@@ -1,0 +1,6 @@
+// Addition
+
+foo: function void () = {
+	"a" + true;
+}
+

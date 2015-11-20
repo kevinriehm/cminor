@@ -2,9 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "util.h"
-
-int util_errorcount = 0;
+#include "cminor.h"
 
 void die_prefixed(char *prefix, char *msg, ...) {
 	va_list ap;
@@ -23,7 +21,7 @@ void die_prefixed(char *prefix, char *msg, ...) {
 void error_prefixed(char *prefix, char *msg, ...) {
 	va_list ap;
 
-	util_errorcount++;
+	cminor_errorcount++;
 
 	fputs(prefix,stderr);
 

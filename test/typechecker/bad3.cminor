@@ -1,0 +1,31 @@
+// Decrement non-integer
+
+foo: function void () = {
+	x: boolean = 5;
+	x--;
+}
+
+// Decrement non-lvalue
+
+foo: function void () = {
+	99--;
+}
+
+// Negate
+
+x: integer = -false;
+
+// Logical NOT
+
+b: boolean = !3;
+
+// Non-integer array subscript
+
+a: array [3] integer;
+x: integer = a[a];
+
+// Non-array subscript
+
+x: integer;
+y: integer = x[3];
+

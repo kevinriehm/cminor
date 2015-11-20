@@ -1,0 +1,57 @@
+// More expressions and such
+
+atoll: function integer (s: string);
+
+foo_i_b: function integer (b: boolean);
+foo_i_b: function integer (b: boolean) = {
+	if(b == false)
+		return 99;
+	else return -99;
+}
+
+foo_s_as_i: function string (a: array [] string, i: integer);
+foo_s_as_i: function string (a: array [] string, i: integer) = {
+	return a[2^(i%4) + i--/66];
+}
+
+foo_b_b_b_b: function boolean (b1: boolean, b2: boolean, b3: boolean);
+
+main: function integer (argc: integer, argv: array [] string) = {
+	if(argc < 2) {
+		print "usage: ", argv[0], " <whatever>\n";
+		return 1;
+	}
+
+	ss: string = "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS";
+	a: array [10] string = {
+		"234",
+		"fd",
+		"rq243",
+		"awefas",
+		"344gg",
+		argv[0],
+		argv[1],
+		argv[2],
+		"89784651651325",
+		ss
+	};
+
+	j: integer;
+	for(j = argc - 1; j > 0; j--)
+		a[j] = argv[j];
+
+	b: boolean = foo_b_b_b_b(argc > 2, argc < 5, true);
+	i: integer = foo_i_b(argc^2/5%2 == 1);
+	s: string = foo_s_as_i(a, atoll(argv[1]));
+
+	print "b = ", b, "\n";
+	print "i = ", i, "\n";
+	print "s = ", s, "\n";
+
+	return i/3;
+}
+
+foo_b_b_b_b: function boolean (b1: boolean, b2: boolean, b3: boolean) = {
+	return (b1 || b2) && b3;
+}
+

@@ -1,0 +1,17 @@
+// Array stuff
+
+a1: array [2] integer = {1, 2};
+a2: array [3] integer = {3, 2, 1};
+
+x: integer = 2;
+
+foo: function integer (a: array [] integer, i: integer);
+
+foo: function integer (a: array [] integer, i: integer) = {
+	return a[i];
+}
+
+bar: function void () = {
+	foo(a2,x);
+}
+

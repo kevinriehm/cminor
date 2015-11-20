@@ -1,0 +1,4 @@
+// Exponent
+
+x: integer = 'g'^5;
+

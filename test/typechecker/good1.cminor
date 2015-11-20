@@ -1,0 +1,9 @@
+// Function calls
+
+foo: function integer (s: string) = {
+}
+
+bar: function void () = {
+	x: integer = foo("abc");
+}
+

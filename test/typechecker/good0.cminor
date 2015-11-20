@@ -1,0 +1,20 @@
+// Variable intialization
+
+a1: array [2] integer = {1, 2};
+a2: array [3] integer = {1, 2, 3};
+
+b1: boolean;
+b2: boolean = true;
+
+c1: char = '\'';
+c2: char = '0';
+
+f1: function void () = {}
+f2: function integer (arg: string) = {}
+
+i1: integer = 5*6 + 4;
+i2: integer = 1111111111111111111;
+
+s1: string = "abc";
+s2: string = "kajfoijfoaisdf\"";
+

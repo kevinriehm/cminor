@@ -6,25 +6,38 @@
 #include "type.h"
 
 type_t *type_create(type_type_t type, int64_t size, arg_t *args,
-	type_t *subtype) {
+	type_t *subtype, bool constant) {
 	return new(type_t,{
 		.type = type,
 		.size = size,
 		.args = args,
-		.subtype = subtype
+		.subtype = subtype,
+		.constant = constant
 	});
 }
 
-bool type_is_function(type_t *this) {
-	return this && this->type == TYPE_FUNCTION;
+type_t *type_clone(type_t *this) {
+	return this ? new(type_t,{
+		.type = this->type,
+		.size = this->size,
+		.args = this->args,
+		.subtype = type_clone(this->subtype),
+		.constant = this->constant,
+		.lvalue = this->lvalue
+	}) : NULL;
 }
 
 bool type_eq(type_t *a, type_t *b) {
 	return a == b // Shortcut; also two NULLs are equal
 		|| a && b // NULL check
 			&& a->type == b->type
+			&& (!a->size || !b->size || a->size == b->size)
 			&& type_eq(a->subtype,b->subtype)
 			&& arg_eq(a->args,b->args);
+}
+
+bool type_is(type_t *this, type_type_t type) {
+	return this && this->type == type;
 }
 
 void type_print(type_t *this) {

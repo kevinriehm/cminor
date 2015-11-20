@@ -1,0 +1,6 @@
+// Return type
+
+foo: function void () = {
+	return 7;
+}
+

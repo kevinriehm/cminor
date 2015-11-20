@@ -1,0 +1,4 @@
+// Multiplication
+
+x: integer = ""*"";
+

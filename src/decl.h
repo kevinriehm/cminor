@@ -9,6 +9,8 @@ typedef struct decl {
 	struct expr *value;
 	struct stmt *body;
 
+	struct symbol *symbol;
+
 	struct decl *next;
 } decl_t;
 
@@ -16,6 +18,7 @@ decl_t *decl_create(str_t, struct type *, struct expr *, struct stmt *);
 
 void decl_print(decl_t *, int);
 void decl_resolve(decl_t *);
+void decl_typecheck(decl_t *);
 
 #endif
 

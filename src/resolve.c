@@ -1,3 +1,4 @@
+#include "decl.h"
 #include "scope.h"
 
 #include "gen/parse.tab.h"

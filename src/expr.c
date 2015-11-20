@@ -1,12 +1,37 @@
 #include <inttypes.h>
 #include <stdio.h>
 
+#include "arg.h"
 #include "cminor.h"
 #include "expr.h"
 #include "scope.h"
 #include "symbol.h"
+#include "type.h"
 #include "pp_util.h"
 #include "util.h"
+
+static char *operators[] = {
+	[EXPR_ADD]       = "+",
+	[EXPR_AND]       = "&&",
+	[EXPR_ASSIGN]    = "=",
+	[EXPR_DECREMENT] = "--",
+	[EXPR_DIVIDE]    = "/",
+	[EXPR_EXPONENT]  = "^",
+	[EXPR_INCREMENT] = "++",
+	[EXPR_MULTIPLY]  = "*",
+	[EXPR_NEGATE]    = "-",
+	[EXPR_NOT]       = "!",
+	[EXPR_OR]        = "||",
+	[EXPR_REMAINDER] = "%",
+	[EXPR_SUBTRACT]  = "-",
+
+	[EXPR_EQ] = "==",
+	[EXPR_GE] = ">=",
+	[EXPR_GT] = ">",
+	[EXPR_LE] = "<=",
+	[EXPR_LT] = "<",
+	[EXPR_NE] = "!="
+};
 
 expr_t *expr_create(expr_op_t op, expr_t *left, expr_t *right) {
 	expr_t *this = new(expr_t,{
@@ -112,26 +137,6 @@ void expr_print(expr_t *this) {
 		[EXPR_INTEGER]   = -1,
 		[EXPR_REFERENCE] = -1,
 		[EXPR_STRING]    = -1
-	};
-
-	// Binary operators
-	static char *operators[] = {
-		[EXPR_ADD]       = "+",
-		[EXPR_AND]       = "&&",
-		[EXPR_ASSIGN]    = "=",
-		[EXPR_DIVIDE]    = "/",
-		[EXPR_EXPONENT]  = "^",
-		[EXPR_MULTIPLY]  = "*",
-		[EXPR_OR]        = "||",
-		[EXPR_REMAINDER] = "%",
-		[EXPR_SUBTRACT]  = "-",
-
-		[EXPR_EQ] = "==",
-		[EXPR_GE] = ">=",
-		[EXPR_GT] = ">",
-		[EXPR_LE] = "<=",
-		[EXPR_LT] = "<",
-		[EXPR_NE] = "!="
 	};
 
 	bool needparen;
@@ -242,6 +247,20 @@ void expr_print(expr_t *this) {
 	}
 }
 
+// Special print function used when type errors are found
+// Format: type (expression)
+void expr_type_print(expr_t *this) {
+	expr_t *next = this->next;
+	this->next = NULL;
+
+	type_print(this->type);
+	printf(" (");
+	expr_print(this);
+	putchar(')');
+
+	this->next = next;
+}
+
 void expr_resolve(expr_t *this) {
 	while(this) {
 		if(this->op == EXPR_REFERENCE) {
@@ -256,6 +275,245 @@ void expr_resolve(expr_t *this) {
 
 		expr_resolve(this->left);
 		expr_resolve(this->right);
+
+		this = this->next;
+	}
+}
+
+void expr_typecheck(expr_t *this) {
+	arg_t *arg;
+	size_t m, n;
+	expr_t *expr;
+	bool constant, fail, manyargs;
+
+	while(this) {
+		expr_typecheck(this->left);
+		expr_typecheck(this->right);
+
+		fail = false;
+
+		switch(this->op) {
+		case EXPR_ADD:
+		case EXPR_DIVIDE:
+		case EXPR_EXPONENT:
+		case EXPR_MULTIPLY:
+		case EXPR_REMAINDER:
+		case EXPR_SUBTRACT:
+			fail = !type_is(this->left->type,TYPE_INTEGER)
+				|| !type_is(this->right->type,TYPE_INTEGER);
+			this->type = type_create(TYPE_INTEGER,0,NULL,NULL,
+				this->left->type->constant
+					&& this->right->type->constant);
+			break;
+
+		case EXPR_AND:
+		case EXPR_OR:
+			fail = !type_is(this->left->type,TYPE_BOOLEAN)
+				|| !type_is(this->right->type,TYPE_BOOLEAN);
+			this->type = type_create(TYPE_BOOLEAN,0,NULL,NULL,
+				this->left->type->constant
+					&& this->right->type->constant);
+			break;
+
+		case EXPR_ASSIGN:
+			if(!type_eq(this->left->type,this->right->type)) {
+				cminor_errorcount++;
+				printf("type error: cannot assign to ");
+				expr_type_print(this->left);
+				printf(" from ");
+				expr_type_print(this->right);
+				putchar('\n');
+			}
+
+			if(type_is(this->left->type,TYPE_ARRAY)
+				|| type_is(this->left->type,TYPE_FUNCTION)) {
+				cminor_errorcount++;
+				printf("type_error: cannot assign to ");
+				expr_type_print(this->left);
+				putchar('\n');
+			}
+
+			this->type = this->left->type;
+			break;
+
+		case EXPR_CALL:
+			if(!type_is(this->left->type,TYPE_FUNCTION)) {
+				cminor_errorcount++;
+				printf("type error: cannot invoke ");
+				expr_type_print(this->left);
+				printf(" as a function\n");
+				break;
+			}
+
+			for(arg = this->left->type->args, expr = this->right,
+				n = 0; arg && expr;
+				arg = arg->next, expr = expr->next, n++) {
+				if(!type_eq(arg->type,expr->type)) {
+					cminor_errorcount++;
+					printf("type error: argument %zu to ",
+						n);
+					expr_print(this->left);
+					printf(" is ");
+					expr_type_print(expr);
+					printf(" but should be ");
+					type_print(arg->type);
+					putchar('\n');
+				}
+			}
+
+			if(arg || expr) {
+				manyargs = !!arg;
+
+				for(m = n; arg || expr;
+					arg = arg ? arg->next : NULL,
+					expr = expr ? expr->next : NULL, m++);
+
+				cminor_errorcount++;
+				printf("type error: call to ");
+				expr_print(this->left);
+				printf(" has %zu argument%s but should have "
+					"%zu\n",
+					manyargs ? n : m,
+					(manyargs ? n : m) == 1 ? "" : "s",
+					manyargs ? m : n);
+			}
+
+			this->type = this->left->type->subtype;
+			break;
+
+		case EXPR_DECREMENT:
+		case EXPR_INCREMENT:
+			if(!this->left->type->lvalue) {
+				cminor_errorcount++;
+				printf("type error: cannot apply the operator "
+					"'%s' to a non-lvalue (",
+					operators[this->op]);
+				expr_print(this->left);
+				printf(")\n");
+			}
+
+			fail = !type_is(this->left->type,TYPE_INTEGER);
+			this->type = type_create(TYPE_INTEGER,0,NULL,NULL,
+				this->left->type->constant);
+			this->type->lvalue = this->left->type->lvalue;
+			break;
+
+		case EXPR_NEGATE:
+			fail = !type_is(this->left->type,TYPE_INTEGER);
+			this->type = type_create(TYPE_INTEGER,0,NULL,NULL,
+				this->left->type->constant);
+			break;
+
+		case EXPR_NOT:
+			fail = !type_is(this->left->type,TYPE_BOOLEAN);
+			this->type = type_create(TYPE_BOOLEAN,
+				0,NULL,NULL,this->left->type->constant);
+			break;
+
+		case EXPR_SUBSCRIPT:
+			if(!type_is(this->left->type,TYPE_ARRAY)) {
+				cminor_errorcount++;
+				printf("type error: cannot index into ");
+				expr_type_print(this->left);
+				putchar('\n');
+			}
+
+			if(!type_is(this->right->type,TYPE_INTEGER)) {
+				cminor_errorcount++;
+				printf("type error: array index is ");
+				expr_type_print(this->right);
+				printf(" but should be integer\n");
+			}
+
+			if(this->type = this->left->type->subtype, !this->type)
+				this->type = type_create(
+					TYPE_VOID,0,NULL,NULL,false);
+			this->type->constant = this->left->type->constant;
+			break;
+
+		case EXPR_EQ:
+		case EXPR_NE:
+			fail = !type_eq(this->left->type,this->right->type)
+				|| type_is(this->left->type,TYPE_ARRAY)
+				|| type_is(this->left->type,TYPE_FUNCTION)
+				|| type_is(this->right->type,TYPE_ARRAY)
+				|| type_is(this->right->type,TYPE_FUNCTION);
+			this->type = type_create(TYPE_BOOLEAN,0,NULL,NULL,
+				this->left->type->constant
+					&& this->right->type->constant);
+			break;
+
+		case EXPR_GE:
+		case EXPR_GT:
+		case EXPR_LE:
+		case EXPR_LT:
+			fail = !type_is(this->left->type,TYPE_INTEGER)
+				|| !type_is(this->right->type,TYPE_INTEGER);
+			this->type = type_create(TYPE_BOOLEAN,0,NULL,NULL,
+				this->left->type->constant
+					&& this->right->type->constant);
+			break;
+
+		case EXPR_ARRAY:
+			for(expr = this->left, constant = true, n = 0; expr;
+				expr = expr->next, n++) {
+				constant &= expr->type->constant;
+
+				if(!type_eq(this->left->type,expr->type)) {
+					cminor_errorcount++;
+					printf("type error: element %zu of "
+						"array intializer is ",n);
+					expr_type_print(expr);
+					printf(" but first element of the "
+						"array is ");
+					expr_type_print(this->left);
+					printf(", which is inconsistent\n");
+				}
+			}
+
+			this->type = type_create(
+				TYPE_ARRAY,n,NULL,this->left->type,constant);
+			break;
+
+		case EXPR_BOOLEAN:
+			this->type
+				= type_create(TYPE_BOOLEAN,0,NULL,NULL,true);
+			break;
+
+		case EXPR_CHARACTER:
+			this->type
+				= type_create(TYPE_CHARACTER,0,NULL,NULL,true);
+			break;
+
+		case EXPR_INTEGER:
+			this->type
+				= type_create(TYPE_INTEGER,0,NULL,NULL,true);
+			break;
+
+		case EXPR_REFERENCE:
+			this->type = type_clone(this->symbol->type);
+			this->type->lvalue = true;
+			break;
+
+		case EXPR_STRING:
+			this->type = type_create(TYPE_STRING,0,NULL,NULL,true);
+			break;
+		}
+
+		if(fail) {
+			cminor_errorcount++;
+
+			printf("type error: cannot apply the operator '%s' "
+				"to ",operators[this->op]);
+			expr_type_print(this->left);
+
+			if(this->right) {
+				printf(" and ");
+				expr_type_print(this->right);
+			}
+
+			putchar('\n');
+		}
 
 		this = this->next;
 	}

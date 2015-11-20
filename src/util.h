@@ -7,8 +7,6 @@
 
 #define resolve_error(...) error_prefixed("resolve error: ",__VA_ARGS__)
 
-extern int util_errorcount;
-
 void die_prefixed(char *, char *, ...);
 void error_prefixed(char *, char *, ...);
 

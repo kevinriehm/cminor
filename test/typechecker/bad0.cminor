@@ -1,0 +1,41 @@
+// Bad initialization type
+
+x: array [2] integer = {"1", "2"};
+
+// Non-constant initializer for global variable
+
+foo: function integer () = {}
+
+x: integer = foo();
+
+// For condition
+
+foo: function void () = {
+	x: integer;
+
+	for(x; x; x) {
+	}
+}
+
+// If condition
+
+foo: function void () = {
+	x: string;
+
+	if(x) {
+	} else {
+	}
+}
+
+// Print statement
+
+foo: function void () = {
+	print foo;
+}
+
+// Return type
+
+foo: function void () = {
+	return 7;
+}
+

@@ -5,12 +5,15 @@
 #include "resolve.h"
 #include "scan.h"
 #include "str.h"
+#include "typecheck.h"
 #include "util.h"
 #include "vector.h"
 
 #include "gen/parse.tab.h"
 
 static vector_t(str_t) inputs;
+
+int cminor_errorcount = 0;
 
 static void process_args(int argc, char **argv) {
 	for(int i = 1; i < argc; i++) {
@@ -54,7 +57,7 @@ int main(int argc, char **argv) {
 
 	case MODE_RESOLVE:
 		if(inputs.n != 1)
-			die("resolution mode requires exactly one input file");
+			die("resolver mode requires exactly one input file");
 
 		parse(open_input_file(inputs.v[0].v));
 		resolve();
@@ -67,9 +70,27 @@ int main(int argc, char **argv) {
 		scan(open_input_file(inputs.v[0].v));
 		break;
 
+	case MODE_TYPECHECK:
+		if(inputs.n != 1)
+			die("typechecker mode requires exactly one input "
+				"file");
+
+		parse(open_input_file(inputs.v[0].v));
+		resolve();
+
+		if(cminor_errorcount)
+			break;
+
+		typecheck();
+		break;
+
 	default: die("unknown or unhandled mode (%i)",cminor_mode);
 	}
 
-	return !!util_errorcount;
+	if(cminor_errorcount)
+		fprintf(stderr,"fatal: %i error%s\n",cminor_errorcount,
+			cminor_errorcount == 1 ? "" : "s");
+
+	return !!cminor_errorcount;
 }
 

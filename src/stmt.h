@@ -28,6 +28,7 @@ stmt_t *stmt_create(stmt_op_t, struct decl *, struct expr *, struct expr *,
 
 void stmt_print(stmt_t *, int);
 void stmt_resolve(stmt_t *);
+void stmt_typecheck(stmt_t *, struct decl *);
 
 #endif
 

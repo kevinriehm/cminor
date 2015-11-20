@@ -1,0 +1,6 @@
+// Divide
+
+foo: function void () = {
+	true/false;
+}
+

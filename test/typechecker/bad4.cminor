@@ -1,0 +1,32 @@
+// Equality
+
+b: boolean = 5 == 'a';
+
+// Inequality
+
+b: boolean = false != "";
+
+// Greater-than or equal
+
+b: boolean = 5 >= false;
+
+// Greater-than
+
+b: boolean = 5 > false;
+
+// Less-than or equal
+
+b: boolean = false <= 7;
+
+// Less-than
+
+b: boolean = "" < "";
+
+// Inconsistent array
+
+a: array [5] integer = {5, 3, 4, "", 'g'};
+
+// Incorrect-length array
+
+a: array [2] integer = {1};
+

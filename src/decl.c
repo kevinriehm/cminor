@@ -52,19 +52,21 @@ void decl_resolve(decl_t *this) {
 	while(this) {
 		// Redundant declarations are not allowed,
 		// with the exception of function prototypes
-		if(symbol = scope_lookup_local(this->name)) {
-			if(symbol->prototype
-				&& type_eq(this->type,symbol->type))
-				symbol->prototype
-					= symbol->prototype && !!this->body;
+		if(this->symbol = scope_lookup_local(this->name)) {
+			if(this->symbol->prototype
+				&& type_eq(this->type,this->symbol->type))
+				this->symbol->prototype
+					= this->symbol->prototype
+						&& !!this->body;
 			else resolve_error("%s is redefined",this->name.v);
 		} else {
-			symbol = symbol_create(this->name,this->type,
+			this->symbol = symbol_create(this->name,this->type,
 				scope_is_global()
 					? SYMBOL_GLOBAL : SYMBOL_LOCAL,
-				type_is_function(this->type) && !this->body);
+				type_is(this->type,TYPE_FUNCTION)
+					&& !this->body);
 
-			scope_bind(this->name,symbol);
+			scope_bind(this->name,this->symbol);
 		}
 
 		// Resolve variable initialization
@@ -86,6 +88,41 @@ void decl_resolve(decl_t *this) {
 
 			scope_leave();
 		}
+
+		this = this->next;
+	}
+}
+
+void decl_typecheck(decl_t *this) {
+	while(this) {
+		// Variable initialization
+		if(this->value) {
+			expr_typecheck(this->value);
+
+			if(!type_eq(this->type,this->value->type)) {
+				cminor_errorcount++;
+				printf("type error: cannot initialize ");
+				type_print(this->type);
+				printf(" (%s) with ",this->name.v);
+				type_print(this->value->type);
+				printf(" (");
+				expr_print(this->value);
+				printf(")\n");
+			} else if(this->symbol->level == SYMBOL_GLOBAL
+				&& !this->value->type->constant) {
+				cminor_errorcount++;
+				printf("type error: global variable (%s) "
+					"cannot be initialized with "
+					"non-constant expression (",
+					this->name.v);
+				expr_print(this->value);
+				printf(")\n");
+			}
+		}
+
+		// Function declaration
+		if(this->body)
+			stmt_typecheck(this->body,this);
 
 		this = this->next;
 	}

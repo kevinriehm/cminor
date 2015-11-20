@@ -18,15 +18,17 @@ typedef struct type {
 	type_type_t type;
 	struct type *subtype;
 
-	int64_t size;
-	struct arg *args;
+	int64_t size; // Size of array types
+	struct arg *args; // Function arguments
+	bool lvalue; // Can it be modified?
+	bool constant; // Does it have a known value at compile time?
 } type_t;
 
-type_t *type_create(type_type_t, int64_t, struct arg *, type_t *);
-
-bool type_is_function(type_t *);
+type_t *type_create(type_type_t, int64_t, struct arg *, type_t *, bool);
+type_t *type_clone(type_t *);
 
 bool type_eq(type_t *, type_t *);
+bool type_is(type_t *, type_type_t);
 
 void type_print(type_t *);
 

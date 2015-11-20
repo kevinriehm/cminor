@@ -1,0 +1,26 @@
+// Addition
+
+foo: function void () = {
+	"a" + true;
+}
+
+// Divide
+
+foo: function void () = {
+	true/false;
+}
+
+// Exponent
+
+x: integer = 'g'^5;
+
+// Multiplication
+
+x: integer = ""*"";
+
+// Remainder
+
+x: integer = 5%' ';
+// Subtraction
+
+x: integer = false - "";

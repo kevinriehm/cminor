@@ -1,0 +1,21 @@
+// Miscellaneous statements
+
+foo: function void () = {
+	i: integer = 5;
+	s: string = "yyyy";
+	b: boolean = i > 2;
+
+	{
+		if(i == 6)
+			s = "tt";
+		else b = !b;
+
+		for(; i < 99; i++)
+			b = !!!!!!!b;
+
+		print i, ' ', s, ' ', b, '\n';
+
+		return;
+	}
+}
+

@@ -1,9 +1,11 @@
 #include <stdio.h>
 
-#include "expr.h"
+#include "cminor.h"
 #include "decl.h"
+#include "expr.h"
 #include "scope.h"
 #include "stmt.h"
+#include "type.h"
 #include "pp_util.h"
 
 stmt_t *stmt_create(stmt_op_t op, decl_t *decl, expr_t *init_expr,
@@ -121,6 +123,95 @@ void stmt_resolve(stmt_t *this) {
 
 		case STMT_RETURN:
 			expr_resolve(this->expr);
+			break;
+		}
+
+		this = this->next;
+	}
+}
+
+void stmt_typecheck(stmt_t *this, decl_t *func) {
+	while(this) {
+		switch(this->op) {
+		case STMT_BLOCK:
+			stmt_typecheck(this->body,func);
+			break;
+
+		case STMT_DECL:
+			decl_typecheck(this->decl);
+			break;
+
+		case STMT_EXPR:
+			expr_typecheck(this->expr);
+			break;
+
+		case STMT_FOR:
+			expr_typecheck(this->init_expr);
+			expr_typecheck(this->expr);
+
+			if(!type_is(this->expr->type,TYPE_BOOLEAN)) {
+				cminor_errorcount++;
+				printf("type error: for loop condition is ");
+				expr_type_print(this->expr);
+				printf(", but must be boolean\n");
+			}
+
+			expr_typecheck(this->next_expr);
+			stmt_typecheck(this->body,func);
+			break;
+
+		case STMT_IF_ELSE:
+			expr_typecheck(this->expr);
+
+			if(!type_is(this->expr->type,TYPE_BOOLEAN)) {
+				cminor_errorcount++;
+				printf("type error: if%s condition is ",
+					this->else_body ? "-else" : "");
+				expr_type_print(this->expr);
+				printf(", but must be boolean\n");
+			}
+
+			stmt_typecheck(this->body,func);
+			stmt_typecheck(this->else_body,func);
+			break;
+
+		case STMT_PRINT:
+			expr_typecheck(this->expr);
+
+			for(expr_t *expr = this->expr; expr;
+				expr = expr->next) {
+				if(type_is(expr->type,TYPE_FUNCTION)
+					|| type_is(expr->type,TYPE_VOID)) {
+					cminor_errorcount++;
+					printf("type error: cannot print ");
+					expr_type_print(expr);
+					putchar('\n');
+				}
+			}
+			break;
+
+		case STMT_RETURN:
+			expr_typecheck(this->expr);
+
+			if(this->expr && !type_eq(
+				this->expr->type,func->type->subtype)) {
+				cminor_errorcount++;
+				printf("type error: cannot return ");
+				expr_type_print(this->expr);
+				printf(" in a function (%s) that returns ",
+					func->name.v);
+				type_print(func->type->subtype);
+				putchar('\n');
+			}
+
+			if(!this->expr
+				&& !type_is(func->type->subtype,TYPE_VOID)) {
+				cminor_errorcount++;
+				printf("type error: return statement has "
+					"expression (");
+				expr_print(this->expr);
+				printf(") in function with void type\n");
+			}
 			break;
 		}
 
