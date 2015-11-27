@@ -1,0 +1,18 @@
+// Global array variables
+
+b0: array [2] boolean = { true, false };
+b1: array [3] array [2] boolean = { { false, false }, { true, true }, { true, false } };
+b2: array [2] array [2] array [1] boolean;
+
+c0: array [2] char = { 'a', 'b' };
+c1: array [3] array [3] char = { { 'c', 'd', 'e' }, { 'f', 'g', 'h' }, { 'i', 'j', 'k' } };
+c2: array [3] array [3] array [2] char;
+
+i0: array [2] integer = { 1, 2 };
+i1: array [2] array [3] integer = { { 3, 4, 5 }, { 6, 7, 8 } };
+i2: array [2] array [1] array [2] integer;
+
+s0: array [2] string = { "11111111", "22222222" };
+s1: array [2] array [2] string = { { "lala", "alal" }, { "xyzzy", "yzzyx" } };
+s2: array [1] array [1] array [1] string;
+

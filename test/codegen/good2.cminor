@@ -1,0 +1,13 @@
+// Simple functions
+
+x1: integer = 5;
+
+foo: function integer () = {
+	x2: integer = 4;
+	return 5 + 4*x2 - x1;
+}
+
+main: function integer () = {
+	return foo();
+}
+

@@ -14,6 +14,7 @@ typedef struct arg {
 
 arg_t *arg_create(str_t, struct type *);
 
+size_t arg_count(arg_t *);
 bool arg_eq(arg_t *, arg_t *);
 
 void arg_print(arg_t *);

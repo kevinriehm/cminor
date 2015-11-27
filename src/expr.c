@@ -4,11 +4,14 @@
 #include "arg.h"
 #include "cminor.h"
 #include "expr.h"
+#include "reg.h"
 #include "scope.h"
+#include "str.h"
 #include "symbol.h"
 #include "type.h"
 #include "pp_util.h"
 #include "util.h"
+#include "vector.h"
 
 static char *operators[] = {
 	[EXPR_ADD]       = "+",
@@ -32,6 +35,24 @@ static char *operators[] = {
 	[EXPR_LT] = "<",
 	[EXPR_NE] = "!="
 };
+
+static vector_t(str_t) datastrings;
+
+// Returns a^b
+// Note: 0^x, where x < 0, is undefined, so we just return 0 (but 0^0 == 1)
+static int64_t expr_pow(int64_t a, int64_t b) {
+	int64_t r;
+
+	if(b < 0)
+		return 0;
+
+	if(b == 0)
+		return 1;
+
+	r = expr_pow(a,b/2);
+
+	return b&1 ? a*r*r : r*r;
+}
 
 expr_t *expr_create(expr_op_t op, expr_t *left, expr_t *right) {
 	expr_t *this = new(expr_t,{
@@ -93,6 +114,335 @@ expr_t *expr_create_string(str_t val) {
 		.parent = NULL,
 		.next = NULL
 	});
+}
+
+// Evaluates a constant expression into a literal value
+expr_t *expr_eval_constant(expr_t *this) {
+	expr_t *head, **tail;
+	expr_t *left, *right;
+
+	if(!this)
+		return NULL;
+
+	left = expr_eval_constant(this->left);
+	right = expr_eval_constant(this->right);
+
+	for(tail = &head; this; this = this->next) {
+		switch(this->op) {
+		case EXPR_ADD:
+			*tail = expr_create_integer(left->i + right->i);
+			break;
+
+		case EXPR_AND:
+			*tail = expr_create_boolean(left->b && right->b);
+			break;
+
+		case EXPR_ASSIGN:    break;
+		case EXPR_CALL:      break;
+		case EXPR_DECREMENT: break;
+
+		case EXPR_DIVIDE:
+			*tail = expr_create_integer(left->i/right->i);
+			break;
+
+		case EXPR_EXPONENT:
+			*tail = expr_create_integer(
+				expr_pow(left->i,right->i));
+			break;
+
+		case EXPR_INCREMENT: break;
+
+		case EXPR_MULTIPLY:
+			*tail = expr_create_integer(left->i*right->i);
+			break;
+
+		case EXPR_NEGATE:
+			*tail = expr_create_integer(-left->i);
+			break;
+
+		case EXPR_NOT:
+			*tail = expr_create_boolean(!left->b);
+			break;
+
+		case EXPR_OR:
+			*tail = expr_create_boolean(left->b || right->b);
+			break;
+
+		case EXPR_REMAINDER:
+			*tail = expr_create_integer(left->i%right->b);
+			break;
+
+		case EXPR_SUBSCRIPT: break;
+
+		case EXPR_SUBTRACT:
+			*tail = expr_create_integer(left->i - right->i);
+			break;
+
+		case EXPR_EQ: *tail = expr_create_boolean(
+			  left->op == EXPR_BOOLEAN ? left->b == right->b
+			: left->op == EXPR_CHARACTER ? left->c == right->c
+			: left->op == EXPR_INTEGER ? left->i == right->i
+			: false); // Should never happen
+			break;
+		case EXPR_GE:
+			*tail = expr_create_boolean(left->i >= right->i);
+			break;
+		case EXPR_GT:
+			*tail = expr_create_boolean(left->i > right->i);
+			break;
+		case EXPR_LE:
+			*tail = expr_create_boolean(left->i <= right->i);
+			break;
+		case EXPR_LT:
+			*tail = expr_create_boolean(left->i < right->i);
+			break;
+		case EXPR_NE: *tail = expr_create_boolean(
+			  left->op == EXPR_BOOLEAN ? left->b != right->b
+			: left->op == EXPR_CHARACTER ? left->c != right->c
+			: left->op == EXPR_INTEGER ? left->i != right->i
+			: false); // Should never happen
+			break;
+
+		case EXPR_ARRAY:
+			*tail = expr_create(EXPR_ARRAY,
+				expr_eval_constant(this->left),NULL);
+			break;
+
+		case EXPR_BOOLEAN:   *tail = this; break;
+		case EXPR_CHARACTER: *tail = this; break;
+		case EXPR_INTEGER:   *tail = this; break;
+		case EXPR_REFERENCE: break;
+		case EXPR_STRING:    *tail = this; break;
+		}
+
+		if(*tail)
+			tail = &(*tail)->next;
+	}
+
+	// Should never happen, because this should be caught in typechecking
+	if(!head)
+		die("non-constant expression passed to expr_eval_constant()");
+
+	return head;
+}
+
+int expr_codegen(expr_t *this, FILE *f, bool wantaddr) {
+	size_t size;
+	int left, reg, right;
+
+	if(!this)
+		return -1;
+
+	left = expr_codegen(this->left,f,this->op == EXPR_ASSIGN
+		|| this->op == EXPR_CALL || this->op == EXPR_DECREMENT
+		|| this->op == EXPR_INCREMENT || this->op == EXPR_SUBSCRIPT);
+	right = expr_codegen(this->right,f,false);
+
+	switch(this->op) {
+	case EXPR_ADD:
+		fprintf(f,"add %%%s, %%%s\n",reg_name(right),reg_name(left));
+		reg_free(right);
+		return left;
+
+	case EXPR_AND:
+		fprintf(f,"and %%%s, %%%s\n",reg_name(right),reg_name(left));
+		reg_free(right);
+		return left;
+
+	case EXPR_ASSIGN:
+		fprintf(f,"mov %%%s, (%%%s)\n",reg_name(right),reg_name(left));
+		reg_free(left);
+		return right;
+
+	case EXPR_CALL:
+		fputs("push %r10\n",f);
+		fputs("push %r11\n",f);
+		fprintf(f,"call *%%%s\n",reg_name(left));
+		fputs("pop %r11\n",f);
+		fputs("pop %r10\n",f);
+		fprintf(f,"mov %%rax, %%%s\n",reg_name(left));
+		return left;
+
+	case EXPR_DECREMENT:
+		reg = reg_alloc();
+		fprintf(f,"mov (%%%s), %%%s\n",reg_name(left),reg_name(reg));
+		fprintf(f,"dec (%%%s)\n",reg_name(left));
+		reg_free(left);
+		return reg;
+
+	case EXPR_DIVIDE:
+		fprintf(f,"mov %%%s, %%rax\n",reg_name(left));
+		fprintf(f,"cdqe\n");
+		fprintf(f,"idiv %%%s\n",reg_name(right));
+		fprintf(f,"mov %%rax, %%%s\n",reg_name(left));
+		reg_free(right);
+		return left;
+
+	case EXPR_EXPONENT:
+		fprintf(f,"mov $1, %%rax\n");
+		fprintf(f,"cmp $0, %%%s\n",reg_name(right));
+		fprintf(f,"jle .L0f\n");
+		fprintf(f,".L3: cmp $1, %%%s\n",reg_name(right));
+		fprintf(f,"jle .L2f\n");
+		fprintf(f,"shr %%%s\n",reg_name(right));
+		fprintf(f,"jnc .L4f\n");
+		fprintf(f,"imul %%%s, %%rax\n",reg_name(left));
+		fprintf(f,".L4: imul %%%s, %%%s\n",
+			reg_name(left),reg_name(left));
+		fprintf(f,"jmp .L3b\n");
+		fprintf(f,".L0: sete %%%s\n",reg_name(left));
+		fprintf(f,".L2: imul %%rac, %%%s\n",reg_name(left));
+		fprintf(f,".L9:\n");
+		reg_free(right);
+		return left;
+
+	case EXPR_INCREMENT:
+		reg = reg_alloc();
+		fprintf(f,"mov (%%%s), %%%s\n",reg_name(left),reg_name(reg));
+		fprintf(f,"inc (%%%s)\n",reg_name(left));
+		reg_free(left);
+		return reg;
+
+	case EXPR_MULTIPLY:
+		fprintf(f,"imul %%%s, %%%s\n",reg_name(right),reg_name(left));
+		reg_free(right);
+		return left;
+
+	case EXPR_NEGATE:
+		fprintf(f,"neg %%%s\n",reg_name(left));
+		return left;
+
+	case EXPR_NOT:
+		fprintf(f,"xor $1, %%%s\n",reg_name(left));
+		return left;
+
+	case EXPR_OR:
+		fprintf(f,"or %%%s, %%%s\n",reg_name(right),reg_name(left));
+		reg_free(right);
+		return left;
+
+	case EXPR_REMAINDER:
+		fprintf(f,"mov %%%s, %%rax\n",reg_name(left));
+		fprintf(f,"cdqe\n");
+		fprintf(f,"idiv %%%s\n",reg_name(right));
+		fprintf(f,"mov %%rdx, %%%s\n",reg_name(left));
+		reg_free(right);
+		return left;
+
+	case EXPR_SUBSCRIPT:
+		if(size = type_size(this->left->type->subtype), size > 1)
+			fprintf(f,"imul $%zu, %%%s\n",size,reg_name(right));
+		fprintf(f,"%s (%%%s,%%%s,$8), %%%s\n",wantaddr ? "lea" : "mov",
+			reg_name(left),reg_name(right),reg_name(left));
+		reg_free(right);
+		return left;
+
+	case EXPR_SUBTRACT:
+		fprintf(f,"sub %%%s, %%%s\n",reg_name(right),reg_name(left));
+		reg_free(right);
+		return left;
+
+	case EXPR_EQ:
+		fprintf(f,"cmp %%%s, %%%s\n",reg_name(right),reg_name(left));
+		fprintf(f,"sete %%%s\n",reg_name_8l(left));
+		fprintf(f,
+			"movzx %%%s, %%%s\n",reg_name_8l(left),reg_name(left));
+		reg_free(right);
+		return left;
+
+	case EXPR_GE:
+		fprintf(f,"cmp %%%s, %%%s\n",reg_name(right),reg_name(left));
+		fprintf(f,"setge %%%s\n",reg_name_8l(left));
+		fprintf(f,
+			"movzx %%%s, %%%s\n",reg_name_8l(left),reg_name(left));
+		reg_free(right);
+		return left;
+
+	case EXPR_GT: break;
+		fprintf(f,"cmp %%%s, %%%s\n",reg_name(right),reg_name(left));
+		fprintf(f,"setgt %%%s\n",reg_name_8l(left));
+		fprintf(f,
+			"movzx %%%s, %%%s\n",reg_name_8l(left),reg_name(left));
+		reg_free(right);
+		return left;
+
+	case EXPR_LE:
+		fprintf(f,"cmp %%%s, %%%s\n",reg_name(right),reg_name(left));
+		fprintf(f,"setle %%%s\n",reg_name_8l(left));
+		fprintf(f,
+			"movzx %%%s, %%%s\n",reg_name_8l(left),reg_name(left));
+		reg_free(right);
+		return left;
+
+	case EXPR_LT:
+		fprintf(f,"cmp %%%s, %%%s\n",reg_name(right),reg_name(left));
+		fprintf(f,"setl %%%s\n",reg_name_8l(left));
+		fprintf(f,
+			"movzx %%%s, %%%s\n",reg_name_8l(left),reg_name(left));
+		reg_free(right);
+		return left;
+
+	case EXPR_NE:
+		fprintf(f,"cmp %%%s, %%%s\n",reg_name(right),reg_name(left));
+		fprintf(f,"setne %%%s\n",reg_name_8l(left));
+		fprintf(f,
+			"movzx %%%s, %%%s\n",reg_name_8l(left),reg_name(left));
+		reg_free(right);
+		return left;
+
+	case EXPR_ARRAY: // Should never happen
+		die("array expression passed to expr_codegen()");
+		break;
+
+	case EXPR_BOOLEAN:
+		reg = reg_alloc();
+		fprintf(f,"mov $%i, %%%s\n",(int) this->b,reg_name(reg));
+		return reg;
+
+	case EXPR_CHARACTER:
+		reg = reg_alloc();
+		fprintf(f,"mov $%i, %%%s\n",(int) this->c,reg_name(reg));
+		return reg;
+
+	case EXPR_INTEGER:
+		reg = reg_alloc();
+		fprintf(f,"mov $%"PRIi64", %%%s\n",this->i,reg_name(reg));
+		return reg;
+
+	case EXPR_REFERENCE:
+		reg = reg_alloc();
+		switch(this->symbol->level) {
+		case SYMBOL_ARG:
+			fprintf(f,"%s -%zu(%%rbp), %%%s\n",
+				wantaddr ? "lea" : "mov",8*this->symbol->index,
+				reg_name(reg));
+			break;
+
+		case SYMBOL_GLOBAL:
+			fprintf(f,"%s %s, %%%s\n",wantaddr ? "lea" : "mov",
+				this->s.v,reg_name(reg));
+			break;
+
+		case SYMBOL_LOCAL:
+			fprintf(f,"%s -%zu(%%rbp), %%%s\n",
+				wantaddr ? "lea" : "mov",
+				8*(this->type->nargs + this->symbol->index),
+				reg_name(reg));
+			break;
+		}
+		return reg;
+
+	case EXPR_STRING:
+		reg = reg_alloc();
+		fprintf(f,
+			"mov $string$%zu, %%%s\n",datastrings.n,reg_name(reg));
+		return reg;
+	}
+
+	// Should never happen
+	die("reached end of expr_codegen() without returning a register");
+
+	return -1;
 }
 
 void expr_print(expr_t *this) {
@@ -247,25 +597,61 @@ void expr_print(expr_t *this) {
 	}
 }
 
-// Special print function used when type errors are found
-// Format: type (expression)
-void expr_type_print(expr_t *this) {
-	expr_t *next = this->next;
-	this->next = NULL;
+// Special print function used when generating global variable declarations
+void expr_print_asm(expr_t *this, FILE *f, bool first) {
+	for(; this; this = this->next, first = false) {
+		switch(this->op) {
+		case EXPR_ARRAY:
+			expr_print_asm(this->left,f,first);
+			break;
 
-	type_print(this->type);
-	printf(" (");
-	expr_print(this);
-	putchar(')');
+		case EXPR_BOOLEAN:
+			fprintf(f,"%s %i",first ? ".quad" : ",",(int) this->b);
+			break;
 
-	this->next = next;
+		case EXPR_CHARACTER:
+			fprintf(f,"%s %i",first ? ".quad" : ",",(int) this->c);
+			break;
+
+		case EXPR_INTEGER:
+			fprintf(f,"%s %"PRIi64,
+				first ? ".quad" : ",",this->i);
+			break;
+
+		case EXPR_STRING:
+			fprintf(f,"%s string$%zu",first ? ".quad" : ",",
+				datastrings.n);
+			vector_append(datastrings,this->s);
+			break;
+
+		default: // Should never happen
+			expr_print(this);
+			die("non-literal value passed to expr_print_asm()");
+		}
+	}
+}
+
+void expr_print_asm_strings(FILE *f) {
+	fputs(".data\n",f);
+
+	for(size_t si = 0; si < datastrings.n; si++) {
+		fprintf(f,"string$%zu: .string \"",si);
+
+		for(size_t ci = 0; ci < datastrings.v[si].n; ci++)
+			fprintf(f,"%s",datastrings.v[si].v[ci] == '\n' ? "\\n"
+				: datastrings.v[si].v[ci] == '\0' ? "\\000"
+				: datastrings.v[si].v[ci] == '"' ? "\\\""
+				: (char []) {datastrings.v[si].v[ci], '\0'});
+
+		fputs("\"\n",f);
+	}
 }
 
 void expr_resolve(expr_t *this) {
 	while(this) {
 		if(this->op == EXPR_REFERENCE) {
 			if(this->symbol = scope_lookup(this->s)) {
-				if(cminor_mode == MODE_RESOLVE) {
+				if(cminor_mode == CMINOR_RESOLVE) {
 					printf("%s resolves to ",this->s.v);
 					symbol_print(this->symbol);
 					putchar('\n');
@@ -280,11 +666,25 @@ void expr_resolve(expr_t *this) {
 	}
 }
 
+// Special print function used when type errors are found
+// Format: type (expression)
+void expr_type_print(expr_t *this) {
+	expr_t *next = this->next;
+	this->next = NULL;
+
+	type_print(this->type);
+	printf(" (");
+	expr_print(this);
+	putchar(')');
+
+	this->next = next;
+}
+
 void expr_typecheck(expr_t *this) {
 	arg_t *arg;
 	size_t m, n;
 	expr_t *expr;
-	bool constant, fail, manyargs;
+	bool constant, fail, moreargs;
 
 	while(this) {
 		expr_typecheck(this->left);
@@ -362,7 +762,7 @@ void expr_typecheck(expr_t *this) {
 			}
 
 			if(arg || expr) {
-				manyargs = !!arg;
+				moreargs = !!arg;
 
 				for(m = n; arg || expr;
 					arg = arg ? arg->next : NULL,
@@ -373,9 +773,9 @@ void expr_typecheck(expr_t *this) {
 				expr_print(this->left);
 				printf(" has %zu argument%s but should have "
 					"%zu\n",
-					manyargs ? n : m,
-					(manyargs ? n : m) == 1 ? "" : "s",
-					manyargs ? m : n);
+					moreargs ? n : m,
+					(moreargs ? n : m) == 1 ? "" : "s",
+					moreargs ? m : n);
 			}
 
 			this->type = this->left->type->subtype;

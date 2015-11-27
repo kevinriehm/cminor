@@ -97,7 +97,7 @@ void yyerror(const char *);
 root: decls {
 	parse_ast = $1.head;
 
-	if(cminor_mode == MODE_PARSE)
+	if(cminor_mode == CMINOR_PARSE)
 		decl_print(parse_ast,0);
     }
     ;

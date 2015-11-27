@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 
 typedef enum {
 	TYPE_ARRAY,
@@ -19,6 +20,8 @@ typedef struct type {
 	struct type *subtype;
 
 	int64_t size; // Size of array types
+	size_t nlocals; // Locals in a function
+	size_t nargs; // Arguments in a function
 	struct arg *args; // Function arguments
 	bool lvalue; // Can it be modified?
 	bool constant; // Does it have a known value at compile time?
@@ -29,6 +32,7 @@ type_t *type_clone(type_t *);
 
 bool type_eq(type_t *, type_t *);
 bool type_is(type_t *, type_type_t);
+size_t type_size(type_t *);
 
 void type_print(type_t *);
 

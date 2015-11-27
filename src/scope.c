@@ -52,19 +52,19 @@ size_t scope_num_function_locals() {
 	return scope->function ? scope->function->nfunclocals : 0;
 }
 
-void scope_bind(str_t name, symbol_t *s) {
+void scope_bind(str_t name, symbol_t *symbol) {
 	if(!scope)
 		die("tried to bind in undefined scope");
 
-	switch(s->level) {
-	case SYMBOL_ARG:    s->index = scope->nargs++;    break;
-	case SYMBOL_GLOBAL: s->index = scope->nglobals++; break;
+	switch(symbol->level) {
+	case SYMBOL_ARG:    symbol->index = scope->nargs++;    break;
+	case SYMBOL_GLOBAL: symbol->index = scope->nglobals++; break;
 
 	// Sibling scopes within a function can overlap their locals, as long
 	// as the function's total local count is kept at the maximum of any of
-	// its descendants
+	// its descendants.
 	case SYMBOL_LOCAL:
-		s->index = scope->nlocals++;
+		symbol->index = scope->nlocals += type_size(symbol->type);
 
 		if(scope->nlocals > scope->function->nfunclocals)
 			scope->function->nfunclocals = scope->nlocals;
@@ -73,7 +73,7 @@ void scope_bind(str_t name, symbol_t *s) {
 
 	if(htable_lookup(scope->table,name))
 		resolve_error("%s is redefined",name.v);
-	else htable_insert(scope->table,name,s);
+	else htable_insert(scope->table,name,symbol);
 }
 
 symbol_t *scope_lookup(str_t name) {

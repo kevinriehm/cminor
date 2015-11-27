@@ -14,6 +14,14 @@ arg_t *arg_create(str_t name, type_t *type) {
 	});
 }
 
+size_t arg_count(arg_t *this) {
+	size_t argi;
+
+	for(argi = 0; this; this = this->next, argi++);
+
+	return argi;
+}
+
 bool arg_eq(arg_t *a, arg_t *b) {
 	while(a && b) {
 		if(!type_eq(a->type,b->type))

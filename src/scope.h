@@ -8,10 +8,10 @@
 struct symbol;
 
 void scope_enter(bool);
-void scope_leave();
+void scope_leave(void);
 
-bool scope_is_global();
-size_t scope_num_function_locals();
+bool scope_is_global(void);
+size_t scope_num_function_locals(void);
 
 void scope_bind(str_t, struct symbol *);
 struct symbol *scope_lookup(str_t);

@@ -3,6 +3,7 @@
 #include "cminor.h"
 #include "decl.h"
 #include "expr.h"
+#include "reg.h"
 #include "scope.h"
 #include "stmt.h"
 #include "type.h"
@@ -20,6 +21,55 @@ stmt_t *stmt_create(stmt_op_t op, decl_t *decl, expr_t *init_expr,
 		.else_body = else_body,
 		.next = NULL
 	});
+}
+
+void stmt_codegen(stmt_t *this, FILE *f) {
+	int reg;
+
+	while(this) {
+		switch(this->op) {
+		case STMT_BLOCK:
+			stmt_codegen(this->body,f);
+			break;
+
+		case STMT_DECL:
+			decl_codegen(this->decl,f);
+			break;
+
+		case STMT_EXPR:
+			reg = expr_codegen(this->expr,f,false);
+			reg_free(reg);
+			break;
+
+		case STMT_FOR:
+			break;
+
+		case STMT_IF_ELSE:
+			break;
+
+		case STMT_PRINT:
+			break;
+
+		case STMT_RETURN:
+			reg = expr_codegen(this->expr,f,false);
+			fprintf(f,"mov %%%s, %%rax\n",reg_name(reg));
+
+			fputs("pop %r15\n",f);
+			fputs("pop %r14\n",f);
+			fputs("pop %r13\n",f);
+			fputs("pop %r12\n",f);
+			fputs("pop %rbx\n",f);
+
+			fputs("mov %rbp, %rsp\n",f);
+			fputs("pop %rbp\n",f);
+			fputs("ret\n",f);
+
+			reg_free(reg);
+			break;
+		}
+
+		this = this->next;
+	}
 }
 
 void stmt_print(stmt_t *this, int indent) {

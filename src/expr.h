@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "str.h"
 
@@ -63,9 +64,14 @@ expr_t *expr_create_integer(int64_t);
 expr_t *expr_create_reference(str_t);
 expr_t *expr_create_string(str_t);
 
+expr_t *expr_eval_constant(expr_t *);
+
+int expr_codegen(expr_t *, FILE *, bool);
 void expr_print(expr_t *);
-void expr_type_print(expr_t *);
+void expr_print_asm(expr_t *, FILE *, bool);
+void expr_print_asm_strings(FILE *);
 void expr_resolve(expr_t *);
+void expr_type_print(expr_t *);
 void expr_typecheck(expr_t *);
 
 #endif

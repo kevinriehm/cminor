@@ -2,11 +2,12 @@
 #define CMINOR_H
 
 enum {
-	MODE_NONE,
-	MODE_PARSE,
-	MODE_RESOLVE,
-	MODE_SCAN,
-	MODE_TYPECHECK
+	CMINOR_NONE,
+	CMINOR_CODEGEN,
+	CMINOR_PARSE,
+	CMINOR_RESOLVE,
+	CMINOR_SCAN,
+	CMINOR_TYPECHECK
 } cminor_mode;
 
 extern int cminor_errorcount;

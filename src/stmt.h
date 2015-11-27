@@ -1,6 +1,8 @@
 #ifndef STMT_H
 #define STMT_H
 
+#include <stdio.h>
+
 typedef enum {
 	STMT_BLOCK,
 	STMT_DECL,
@@ -26,6 +28,7 @@ typedef struct stmt {
 stmt_t *stmt_create(stmt_op_t, struct decl *, struct expr *, struct expr *,
 	struct expr *, stmt_t *, stmt_t *);
 
+void stmt_codegen(stmt_t *, FILE *);
 void stmt_print(stmt_t *, int);
 void stmt_resolve(stmt_t *);
 void stmt_typecheck(stmt_t *, struct decl *);

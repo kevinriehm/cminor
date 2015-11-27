@@ -9,9 +9,10 @@ type_t *type_create(type_type_t type, int64_t size, arg_t *args,
 	type_t *subtype, bool constant) {
 	return new(type_t,{
 		.type = type,
-		.size = size,
-		.args = args,
 		.subtype = subtype,
+		.size = size,
+		.nargs = arg_count(args),
+		.args = args,
 		.constant = constant
 	});
 }
@@ -38,6 +39,23 @@ bool type_eq(type_t *a, type_t *b) {
 
 bool type_is(type_t *this, type_type_t type) {
 	return this && this->type == type;
+}
+
+size_t type_size(type_t *this) {
+	switch(this->type) {
+	case TYPE_ARRAY:
+		return this->size*type_size(this->subtype);
+
+	case TYPE_BOOLEAN:
+	case TYPE_CHARACTER:
+	case TYPE_FUNCTION:
+	case TYPE_INTEGER:
+	case TYPE_STRING:
+		return 1;
+
+	case TYPE_VOID:
+		return 0;
+	}
 }
 
 void type_print(type_t *this) {

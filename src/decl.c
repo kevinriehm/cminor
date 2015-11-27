@@ -5,6 +5,7 @@
 #include "decl.h"
 #include "expr.h"
 #include "pp_util.h"
+#include "reg.h"
 #include "scope.h"
 #include "stmt.h"
 #include "symbol.h"
@@ -19,6 +20,53 @@ decl_t *decl_create(str_t name, type_t *type, expr_t *value, stmt_t *body) {
 		.body = body,
 		.next = NULL
 	});
+}
+
+void decl_codegen(decl_t *this, FILE *f) {
+	arg_t *arg;
+	int argi, reg;
+
+	while(this) {
+		if(type_is(this->type,TYPE_FUNCTION)) {
+			fputs(".text\n",f);
+			fprintf(f,".global %s\n",this->name.v);
+			fprintf(f,"%s:\n",this->name.v);
+
+			fputs("push %rbp\n",f);
+			fputs("mov %rsp, %rbp\n",f);
+
+			for(arg = this->type->args, argi = 0;
+				arg; arg = arg->next, argi++)
+				fprintf(f,"push %%%s\n",reg_name_arg(argi));
+
+			fprintf(f,"sub $%zu, %%rsp\n",8*this->type->nlocals);
+
+			fputs("push %rbx\n",f);
+			fputs("push %r12\n",f);
+			fputs("push %r13\n",f);
+			fputs("push %r14\n",f);
+			fputs("push %r15\n",f);
+
+			stmt_codegen(this->body,f);
+		} else if(this->symbol->level == SYMBOL_GLOBAL) {
+			fprintf(f,".data\n.globl %s\n%s: ",this->name.v,
+				this->name.v);
+
+			if(this->value)
+				expr_print_asm(expr_eval_constant(this->value),
+					f,true);
+			else fprintf(f,".space %zu\n",8*type_size(this->type));
+
+			fputc('\n',f);
+		} else if(this->value) {
+			reg = expr_codegen(this->value,f,false);
+			fprintf(f,"mov %%%s, -%zu(%%rbp)\n",reg_name(reg),
+				8*(this->type->nargs + this->symbol->index));
+			reg_free(reg);
+		}
+
+		this = this->next;
+	}
 }
 
 void decl_print(decl_t *this, int indent) {
@@ -85,6 +133,8 @@ void decl_resolve(decl_t *this) {
 			}
 
 			stmt_resolve(this->body->body);
+
+			this->type->nlocals = scope_num_function_locals();
 
 			scope_leave();
 		}
