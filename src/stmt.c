@@ -24,7 +24,10 @@ stmt_t *stmt_create(stmt_op_t op, decl_t *decl, expr_t *init_expr,
 }
 
 void stmt_codegen(stmt_t *this, FILE *f) {
+	static size_t nlabels = 0;
+
 	int reg;
+	size_t label1, label2;
 
 	while(this) {
 		switch(this->op) {
@@ -37,34 +40,84 @@ void stmt_codegen(stmt_t *this, FILE *f) {
 			break;
 
 		case STMT_EXPR:
-			reg = expr_codegen(this->expr,f,false);
+			reg = expr_codegen(this->expr,f,false,0);
 			reg_free(reg);
 			break;
 
 		case STMT_FOR:
+			label1 = nlabels++;
+			label2 = nlabels++;
+
+			reg = expr_codegen(this->init_expr,f,false,0);
+			reg_free(reg);
+
+			fprintf(f,".Lstmt_%zu:\n",label1);
+
+			reg = expr_codegen(this->expr,f,false,0);
+			fprintf(f,"cmp $0, %s\n",reg_name(reg));
+			fprintf(f,"je .Lstmt_%zu\n",label2);
+			reg_free(reg);
+
+			stmt_codegen(this->body,f);
+
+			reg = expr_codegen(this->next_expr,f,false,0);
+			reg_free(reg);
+
+			fprintf(f,"jmp .Lstmt_%zu\n",label1);
+			fprintf(f,".Lstmt_%zu:\n",label2);
 			break;
 
 		case STMT_IF_ELSE:
+			label1 = nlabels++;
+			label2 = nlabels++;
+
+			reg = expr_codegen(this->expr,f,false,0);
+			fprintf(f,"cmp $0, %s\n",reg_name(reg));
+			fprintf(f,"je .Lstmt_%zu\n",label1);
+			reg_free(reg);
+
+			stmt_codegen(this->body,f);
+
+			fprintf(f,"jmp .Lstmt_%zu\n",label2);
+			fprintf(f,".Lstmt_%zu:\n",label1);
+
+			stmt_codegen(this->else_body,f);
+
+			fprintf(f,".Lstmt_%zu:\n",label2);
 			break;
 
 		case STMT_PRINT:
+			for(expr_t *expr = this->expr;
+				expr; expr = expr->next) {
+				reg = expr_codegen(expr,f,false,0);
+				fprintf(f,"mov %s, %%rdi\n",reg_name(reg));
+				reg_free(reg);
+
+				fprintf(f,"push %%r10\n");
+				fprintf(f,"push %%r11\n");
+
+				fprintf(f,"call print_%s\n",
+					  expr->type->type == TYPE_BOOLEAN
+					? "boolean"
+					: expr->type->type == TYPE_CHARACTER
+					? "character"
+					: expr->type->type == TYPE_INTEGER
+					? "integer"
+					: expr->type->type == TYPE_STRING
+					? "string" : "<should never happen>");
+
+				fprintf(f,"pop %%r11\n");
+				fprintf(f,"pop %%r10\n");
+				reg_free(reg);
+			}
 			break;
 
 		case STMT_RETURN:
-			reg = expr_codegen(this->expr,f,false);
-			fprintf(f,"mov %%%s, %%rax\n",reg_name(reg));
-
-			fputs("pop %r15\n",f);
-			fputs("pop %r14\n",f);
-			fputs("pop %r13\n",f);
-			fputs("pop %r12\n",f);
-			fputs("pop %rbx\n",f);
-
-			fputs("mov %rbp, %rsp\n",f);
-			fputs("pop %rbp\n",f);
-			fputs("ret\n",f);
-
+			reg = expr_codegen(this->expr,f,false,0);
+			fprintf(f,"mov %s, %%rax\n",reg_name(reg));
 			reg_free(reg);
+
+			fputs("jmp 99f\n",f);
 			break;
 		}
 

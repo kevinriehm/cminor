@@ -1,0 +1,14 @@
+// If-else statement
+
+main: function integer () = {
+	if(4 < 5) {
+		if(7 < 6) {
+			return 1;
+		} else {
+			return 2;
+		}
+	} else {
+		return 3;
+	}
+}
+

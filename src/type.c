@@ -4,6 +4,7 @@
 #include "arg.h"
 #include "pp_util.h"
 #include "type.h"
+#include "util.h"
 
 type_t *type_create(type_type_t type, int64_t size, arg_t *args,
 	type_t *subtype, bool constant) {
@@ -56,6 +57,10 @@ size_t type_size(type_t *this) {
 	case TYPE_VOID:
 		return 0;
 	}
+
+	// Should never happen
+	die("unhandled type type in type_size()");
+	return 0;
 }
 
 void type_print(type_t *this) {

@@ -31,6 +31,7 @@ int reg_alloc() {
 	}
 
 	die("registers exhausted");
+	return -1;
 }
 
 void reg_free(int reg) {
@@ -39,10 +40,10 @@ void reg_free(int reg) {
 
 char *reg_name(int reg) {
 	static char *names[] = {
-		"rax", "rbx", "rcx", "rdx",
-		"rsi", "rdi", "rbp", "rsp",
-		 "r8",  "r9", "r10", "r11",
-		"r12", "r13", "r14", "r15"
+		"%rax", "%rbx", "%rcx", "%rdx",
+		"%rsi", "%rdi", "%rbp", "%rsp",
+		 "%r8",  "%r9", "%r10", "%r11",
+		"%r12", "%r13", "%r14", "%r15"
 	};
 
 	return names[reg];
@@ -50,10 +51,10 @@ char *reg_name(int reg) {
 
 char *reg_name_8l(int reg) {
 	static char *names[] = {
-		  "al",   "bl",   "cl",   "dl",
-		 "sil",  "dil",  "bpl",  "spl",
-		 "r8b",  "r9b", "r10b", "r11b",
-		"r12b", "r13b", "r14b", "r15b"
+		  "%al",   "%bl",   "%cl",   "%dl",
+		 "%sil",  "%dil",  "%bpl",  "%spl",
+		 "%r8b",  "%r9b", "%r10b", "%r11b",
+		"%r12b", "%r13b", "%r14b", "%r15b"
 	};
 
 	return names[reg];
@@ -61,7 +62,7 @@ char *reg_name_8l(int reg) {
 
 char *reg_name_arg(int index) {
 	static char *names[] = {
-		"rdi", "rsi", "rdx", "rcx", "r8", "r9"
+		"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"
 	};
 
 	return names[index];

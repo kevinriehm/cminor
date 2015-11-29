@@ -1,0 +1,7 @@
+// Print statement
+
+main: function integer () = {
+	print true, ' ', -123, " xyzzy\n";
+	return 0;
+}
+

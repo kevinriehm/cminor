@@ -66,7 +66,7 @@ expr_t *expr_create_string(str_t);
 
 expr_t *expr_eval_constant(expr_t *);
 
-int expr_codegen(expr_t *, FILE *, bool);
+int expr_codegen(expr_t *, FILE *, bool, int);
 void expr_print(expr_t *);
 void expr_print_asm(expr_t *, FILE *, bool);
 void expr_print_asm_strings(FILE *);

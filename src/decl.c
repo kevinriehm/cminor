@@ -27,9 +27,9 @@ void decl_codegen(decl_t *this, FILE *f) {
 	int argi, reg;
 
 	while(this) {
-		if(type_is(this->type,TYPE_FUNCTION)) {
+		if(type_is(this->type,TYPE_FUNCTION) && this->body) {
 			fputs(".text\n",f);
-			fprintf(f,".global %s\n",this->name.v);
+			fprintf(f,".globl %s\n",this->name.v);
 			fprintf(f,"%s:\n",this->name.v);
 
 			fputs("push %rbp\n",f);
@@ -37,7 +37,7 @@ void decl_codegen(decl_t *this, FILE *f) {
 
 			for(arg = this->type->args, argi = 0;
 				arg; arg = arg->next, argi++)
-				fprintf(f,"push %%%s\n",reg_name_arg(argi));
+				fprintf(f,"push %s\n",reg_name_arg(argi));
 
 			fprintf(f,"sub $%zu, %%rsp\n",8*this->type->nlocals);
 
@@ -48,7 +48,19 @@ void decl_codegen(decl_t *this, FILE *f) {
 			fputs("push %r15\n",f);
 
 			stmt_codegen(this->body,f);
-		} else if(this->symbol->level == SYMBOL_GLOBAL) {
+
+			fputs("99:\n",f);
+			fputs("pop %r15\n",f);
+			fputs("pop %r14\n",f);
+			fputs("pop %r13\n",f);
+			fputs("pop %r12\n",f);
+			fputs("pop %rbx\n",f);
+
+			fputs("mov %rbp, %rsp\n",f);
+			fputs("pop %rbp\n",f);
+			fputs("ret\n",f);
+		} else if(!type_is(this->type,TYPE_FUNCTION)
+			&& this->symbol->level == SYMBOL_GLOBAL) {
 			fprintf(f,".data\n.globl %s\n%s: ",this->name.v,
 				this->name.v);
 
@@ -59,10 +71,15 @@ void decl_codegen(decl_t *this, FILE *f) {
 
 			fputc('\n',f);
 		} else if(this->value) {
-			reg = expr_codegen(this->value,f,false);
-			fprintf(f,"mov %%%s, -%zu(%%rbp)\n",reg_name(reg),
-				8*(this->type->nargs + this->symbol->index));
-			reg_free(reg);
+			reg = expr_codegen(this->value,f,false,
+				this->type->nargs + this->symbol->index
+					+ type_size(this->value->type));
+			if(reg >= 0) {
+				fprintf(f,"mov %s, -%zu(%%rbp)\n",
+					reg_name(reg),8*(this->type->nargs
+						+ this->symbol->index + 1));
+				reg_free(reg);
+			}
 		}
 
 		this = this->next;

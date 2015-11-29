@@ -1,0 +1,32 @@
+// Local arrays
+
+main: function integer () = {
+	x: array [5] integer = {11, 22, 33, 44, 55};
+
+	print "x = {", x[0], ", ", x[1], ", ", x[2], ", ", x[3], ", ", x[4], "}\n";
+
+	xx: array [3] array[3] string = {{"aaa", "bbb", "ccc"}, {"ddd", "eee", "fff"}, {"ggg", "hhh", "iii"}};
+
+	print "xx = {";
+
+	i: integer;
+	j: integer;
+	for(i = 0; i < 3; i++) {
+		if(i > 0)
+			print ", ";
+
+		print '{';
+		for(j = 0; j < 3; j++) {
+			if(j > 0)
+				print ", ";
+
+			print xx[i][j];
+		}
+		print '}';
+	}
+
+	print "}\n";
+
+	return 0;
+}
+

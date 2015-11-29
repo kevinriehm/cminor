@@ -1,0 +1,16 @@
+// Function arguments
+
+foo: function integer (b: boolean, c: char, i: integer, s: string) = {
+	print "b = ", b, '\n';
+	print "c = '", c, "'\n";
+	print "i = ", i, '\n';
+	print "s = \"", s, "\"\n";
+	return 111*i;
+}
+
+main: function integer () = {
+	i: integer = foo(false, 'x', 2^7 - 1, "Hello, world!");
+	print "foo() = ", i, '\n';
+	return 0;
+}
+

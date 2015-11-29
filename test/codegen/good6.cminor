@@ -1,0 +1,16 @@
+// For loop
+
+main: function integer () = {
+	i: integer;
+
+	print "For loop 1:\n";
+	for(i = 0; i < 10; i++)
+		print "i = ", i, "\n";
+
+	print "For loop 2:\n";
+	for(i = 1; i < 2^12; i = 2*i)
+		print "i = ", i, "\n";
+
+	return 0;
+}
+

@@ -16,6 +16,10 @@ typedef struct { \
 	(_this).v = NULL; \
 } while(0)
 
+#define vector_free(_this) do { \
+	free((_this).v); \
+} while(0)
+
 #define vector_append(_this, ...) do { \
 	if((_this).n + 1 > (_this).c) { \
 		(_this).c = 1.5*((_this).c + 1); \
@@ -26,6 +30,7 @@ typedef struct { \
 } while(0)
 
 typedef_vector_t(char);
+typedef_vector_t(int);
 
 #endif
 

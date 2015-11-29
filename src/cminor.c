@@ -20,6 +20,8 @@ static void process_args(int argc, char **argv) {
 	for(int i = 1; i < argc; i++) {
 		if(strcmp(argv[i],"-codegen") == 0)
 			cminor_mode = CMINOR_CODEGEN;
+		else if(strcmp(argv[i],"-compile") == 0)
+			cminor_mode = CMINOR_CODEGEN;
 		else if(strcmp(argv[i],"-parse") == 0)
 			cminor_mode = CMINOR_PARSE;
 		else if(strcmp(argv[i],"-print") == 0)

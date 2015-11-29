@@ -3,6 +3,7 @@
 #include "scope.h"
 #include "str.h"
 #include "symbol.h"
+#include "type.h"
 #include "util.h"
 
 typedef struct scope {
@@ -64,7 +65,8 @@ void scope_bind(str_t name, symbol_t *symbol) {
 	// as the function's total local count is kept at the maximum of any of
 	// its descendants.
 	case SYMBOL_LOCAL:
-		symbol->index = scope->nlocals += type_size(symbol->type);
+		symbol->index = scope->nlocals;
+		scope->nlocals += type_size(symbol->type);
 
 		if(scope->nlocals > scope->function->nfunclocals)
 			scope->function->nfunclocals = scope->nlocals;
