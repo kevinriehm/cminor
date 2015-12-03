@@ -454,8 +454,9 @@ int expr_codegen(expr_t *this, FILE *f, bool wantaddr, int outindex) {
 			break;
 
 		case SYMBOL_GLOBAL:
-			fprintf(f,"%s %s, %s\n",wantaddr ? "lea" : "mov",
-				this->s.v,reg_name(reg));
+			fprintf(f,"%s %s(%%rip), %s\n",
+				wantaddr ? "lea" : "mov",this->s.v,
+				reg_name(reg));
 			break;
 
 		case SYMBOL_LOCAL:
@@ -470,8 +471,8 @@ int expr_codegen(expr_t *this, FILE *f, bool wantaddr, int outindex) {
 
 	case EXPR_STRING:
 		reg = reg_alloc();
-		fprintf(f,
-			"mov $string$%zu, %s\n",datastrings.n,reg_name(reg));
+		fprintf(f,"lea string$%zu(%%rip), %s\n",
+			datastrings.n,reg_name(reg));
 		vector_append(datastrings,this->s);
 		return reg;
 	}
