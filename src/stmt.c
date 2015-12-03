@@ -53,10 +53,13 @@ void stmt_codegen(stmt_t *this, FILE *f) {
 
 			fprintf(f,".Lstmt_%zu:\n",label1);
 
-			reg = expr_codegen(this->expr,f,false,0);
-			fprintf(f,"cmp $0, %s\n",reg_name(reg));
-			fprintf(f,"je .Lstmt_%zu\n",label2);
-			reg_free(reg);
+			// Empty test expression means infinite loop
+			if(this->expr) {
+				reg = expr_codegen(this->expr,f,false,0);
+				fprintf(f,"cmp $0, %s\n",reg_name(reg));
+				fprintf(f,"je .Lstmt_%zu\n",label2);
+				reg_free(reg);
+			}
 
 			stmt_codegen(this->body,f);
 
@@ -194,7 +197,7 @@ void stmt_resolve(stmt_t *this) {
 	while(this) {
 		switch(this->op) {
 		case STMT_BLOCK:
-			scope_enter(false);
+			scope_enter(NULL);
 			stmt_resolve(this->body);
 			scope_leave();
 			break;
@@ -252,7 +255,8 @@ void stmt_typecheck(stmt_t *this, decl_t *func) {
 			expr_typecheck(this->init_expr);
 			expr_typecheck(this->expr);
 
-			if(!type_is(this->expr->type,TYPE_BOOLEAN)) {
+			if(this->expr
+				&& !type_is(this->expr->type,TYPE_BOOLEAN)) {
 				cminor_errorcount++;
 				printf("type error: for loop condition is ");
 				expr_type_print(this->expr);

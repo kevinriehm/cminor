@@ -4,7 +4,7 @@
 #include "gen/parse.tab.h"
 
 void resolve() {
-	scope_enter(false);
+	scope_enter(NULL);
 
 	decl_resolve(parse_ast);
 

@@ -447,8 +447,9 @@ int expr_codegen(expr_t *this, FILE *f, bool wantaddr, int outindex) {
 
 		switch(this->symbol->level) {
 		case SYMBOL_ARG:
-			fprintf(f,"%s -%zu(%%rbp), %s\n",
-				wantaddr ? "lea" : "mov",
+			fprintf(f,"%s -%zu(%%rbp), %s\n",wantaddr && !type_is(
+					this->symbol->type,TYPE_ARRAY)
+					? "lea" : "mov",
 				8*(this->symbol->index + size),reg_name(reg));
 			break;
 
@@ -459,7 +460,8 @@ int expr_codegen(expr_t *this, FILE *f, bool wantaddr, int outindex) {
 
 		case SYMBOL_LOCAL:
 			fprintf(f,"%s -%zu(%%rbp), %s\n",
-				wantaddr ? "lea" : "mov",8*(this->type->nargs
+				wantaddr ? "lea" : "mov",
+				8*(this->symbol->func->type->nargs
 					+ this->symbol->index + size),
 				reg_name(reg));
 			break;

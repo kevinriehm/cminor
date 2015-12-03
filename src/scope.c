@@ -1,3 +1,4 @@
+#include "decl.h"
 #include "htable.h"
 #include "pp_util.h"
 #include "scope.h"
@@ -8,28 +9,31 @@
 
 typedef struct scope {
 	struct scope *parent;
-	struct scope *function;
+	struct scope *funcscope;
 	htable_t(symbol_t) table;
 
 	size_t nargs;
 	size_t nglobals;
 	size_t nlocals; // Local count of this and parent scopes
 	size_t nfunclocals; // Total function local count
+
+	decl_t *func;
 } scope_t;
 
 static scope_t *scope = NULL;
 
-void scope_enter(bool function) {
+void scope_enter(decl_t *func) {
 	scope = new(scope_t,{
 		.parent = scope,
-		.table = htable_new(symbol_t)
+		.table = htable_new(symbol_t),
+		.func = func
 	});
 
 	// Give us access to the function local count
-	if(function)
-		scope->function = scope;
+	if(func)
+		scope->funcscope = scope;
 	else if(scope->parent)
-		scope->function = scope->parent->function;
+		scope->funcscope = scope->parent->funcscope;
 
 	// Give us access to the parent local count (we can reuse the local
 	// indices used by our siblings, so we start our locals at the parent's
@@ -49,8 +53,12 @@ bool scope_is_global() {
 	return scope && !scope->parent;
 }
 
+decl_t *scope_function() {
+	return scope && scope->funcscope ? scope->funcscope->func : NULL;
+}
+
 size_t scope_num_function_locals() {
-	return scope->function ? scope->function->nfunclocals : 0;
+	return scope->funcscope ? scope->funcscope->nfunclocals : 0;
 }
 
 void scope_bind(str_t name, symbol_t *symbol) {
@@ -68,8 +76,8 @@ void scope_bind(str_t name, symbol_t *symbol) {
 		symbol->index = scope->nlocals;
 		scope->nlocals += type_size(symbol->type);
 
-		if(scope->nlocals > scope->function->nfunclocals)
-			scope->function->nfunclocals = scope->nlocals;
+		if(scope->nlocals > scope->funcscope->nfunclocals)
+			scope->funcscope->nfunclocals = scope->nlocals;
 		break;
 	}
 

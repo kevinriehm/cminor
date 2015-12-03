@@ -1,0 +1,13 @@
+// Command-line arguments
+
+main: function integer (argc: integer, argv: array [] string) = {
+	i:integer;
+
+	print "Number of arguments: ", argc, "\n";
+
+	for(i = 0; i < argc; i++)
+		print "Argument ", i, ": ", argv[i], "\n";
+
+	return 0;
+}
+

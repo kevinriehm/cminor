@@ -72,7 +72,8 @@ void decl_codegen(decl_t *this, FILE *f) {
 			fputc('\n',f);
 		} else if(this->value) {
 			reg = expr_codegen(this->value,f,false,
-				this->type->nargs + this->symbol->index
+				this->symbol->func->type->nargs
+					+ this->symbol->index
 					+ type_size(this->value->type));
 			if(reg >= 0) {
 				fprintf(f,"mov %s, -%zu(%%rbp)\n",
@@ -129,7 +130,8 @@ void decl_resolve(decl_t *this) {
 				scope_is_global()
 					? SYMBOL_GLOBAL : SYMBOL_LOCAL,
 				type_is(this->type,TYPE_FUNCTION)
-					&& !this->body);
+					&& !this->body,
+				scope_function());
 
 			scope_bind(this->name,this->symbol);
 		}
@@ -140,12 +142,12 @@ void decl_resolve(decl_t *this) {
 
 		// Resolve function declaration
 		if(this->body) {
-			scope_enter(true);
+			scope_enter(this);
 
 			for(arg_t *arg = this->type->args; arg;
 				arg = arg->next) {
-				symbol = symbol_create(
-					arg->name,arg->type,SYMBOL_ARG,false);
+				symbol = symbol_create(arg->name,arg->type,
+					SYMBOL_ARG,false,scope_function());
 				scope_bind(arg->name,symbol);
 			}
 

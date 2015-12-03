@@ -44,8 +44,8 @@ bool type_is(type_t *this, type_type_t type) {
 
 size_t type_size(type_t *this) {
 	switch(this->type) {
-	case TYPE_ARRAY:
-		return this->size*type_size(this->subtype);
+	case TYPE_ARRAY: // Unsized arrays are arguments, passed as pointers
+		return this->size ? this->size*type_size(this->subtype) : 1;
 
 	case TYPE_BOOLEAN:
 	case TYPE_CHARACTER:
