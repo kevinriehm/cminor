@@ -24,10 +24,13 @@ decl_t *decl_create(str_t name, type_t *type, expr_t *value, stmt_t *body) {
 
 void decl_codegen(decl_t *this, FILE *f) {
 	arg_t *arg;
-	int argi, reg;
+	int argi, *regs;
+	reg_real_t *realregs;
 
 	while(this) {
 		if(type_is(this->type,TYPE_FUNCTION) && this->body) {
+			reg_reset();
+
 			fputs(".text\n",f);
 			fprintf(f,".globl %s\n",this->name.v);
 			fprintf(f,"%s:\n",this->name.v);
@@ -35,30 +38,43 @@ void decl_codegen(decl_t *this, FILE *f) {
 			fputs("push %rbp\n",f);
 			fputs("mov %rsp, %rbp\n",f);
 
+			fprintf(f,"sub $%s$spill, %%rsp\n",this->name.v);
+
+			// Assign the arguments to virtual registers
+			realregs = (reg_real_t []) {
+				REG_RDI, REG_RSI, REG_RDX, REG_RCX, REG_R8,
+				REG_R9
+			};
+
 			for(arg = this->type->args, argi = 0;
 				arg; arg = arg->next, argi++)
-				fprintf(f,"push %s\n",reg_name_arg(argi));
+				arg->symbol->reg = argi < 6
+					? reg_assign_real(realregs[argi])
+					: reg_assign_local(5 - argi);
 
-			fprintf(f,"sub $%zu, %%rsp\n",8*this->type->nlocals);
-
-			fputs("push %rbx\n",f);
-			fputs("push %r12\n",f);
-			fputs("push %r13\n",f);
-			fputs("push %r14\n",f);
-			fputs("push %r15\n",f);
+			// Preserve the callee-saved registers
+			regs = (int []) {
+				reg_assign_real(REG_RBX),
+				reg_assign_real(REG_R12),
+				reg_assign_real(REG_R13),
+				reg_assign_real(REG_R14),
+				reg_assign_real(REG_R15)
+			};
 
 			stmt_codegen(this->body,f);
-
 			fputs("99:\n",f);
-			fputs("pop %r15\n",f);
-			fputs("pop %r14\n",f);
-			fputs("pop %r13\n",f);
-			fputs("pop %r12\n",f);
-			fputs("pop %rbx\n",f);
+
+			// Restore the callee-saved registers
+			reg_map_v(5,regs,(reg_real_t []) {
+				REG_RBX, REG_R12, REG_R13, REG_R14, REG_R15
+			},f);
 
 			fputs("mov %rbp, %rsp\n",f);
 			fputs("pop %rbp\n",f);
 			fputs("ret\n",f);
+
+			fprintf(f,".set %s$spill, %zu\n",
+				this->name.v,8*reg_frame_size());
 		} else if(!type_is(this->type,TYPE_FUNCTION)
 			&& this->symbol->level == SYMBOL_GLOBAL) {
 			fprintf(f,".data\n.globl %s\n%s: ",this->name.v,
@@ -70,17 +86,12 @@ void decl_codegen(decl_t *this, FILE *f) {
 			else fprintf(f,".space %zu\n",8*type_size(this->type));
 
 			fputc('\n',f);
-		} else if(this->value) {
-			reg = expr_codegen(this->value,f,false,
+		} else if(this->value) { // Local variable
+			this->symbol->reg = expr_codegen(this->value,f,false,
 				this->symbol->func->type->nargs
 					+ this->symbol->index
 					+ type_size(this->value->type));
-			if(reg >= 0) {
-				fprintf(f,"mov %s, -%zu(%%rbp)\n",
-					reg_name(reg),8*(this->type->nargs
-						+ this->symbol->index + 1));
-				reg_free(reg);
-			}
+			reg_make_persistent(this->symbol->reg);
 		}
 
 		this = this->next;
@@ -113,8 +124,6 @@ void decl_print(decl_t *this, int indent) {
 }
 
 void decl_resolve(decl_t *this) {
-	symbol_t *symbol;
-
 	while(this) {
 		// Redundant declarations are not allowed,
 		// with the exception of function prototypes
@@ -146,9 +155,10 @@ void decl_resolve(decl_t *this) {
 
 			for(arg_t *arg = this->type->args; arg;
 				arg = arg->next) {
-				symbol = symbol_create(arg->name,arg->type,
-					SYMBOL_ARG,false,scope_function());
-				scope_bind(arg->name,symbol);
+				arg->symbol = symbol_create(
+					arg->name,arg->type,SYMBOL_ARG,false,
+					scope_function());
+				scope_bind(arg->name,arg->symbol);
 			}
 
 			stmt_resolve(this->body->body);

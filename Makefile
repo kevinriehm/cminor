@@ -9,6 +9,8 @@ CM_CFLAGS = -g -Wall -Wextra -pedantic -Wno-missing-field-initializers \
 CM_DEPS = $(CM_CSRC:.c=.d) $(CM_LSRC:.l=.yy.d) $(CM_YSRC:.y=.tab.d)
 CM_OBJS = $(CM_CSRC:.c=.o) $(CM_LSRC:.l=.yy.o) $(CM_YSRC:.y=.tab.o)
 
+CM_LIBS = -lm
+
 CBUILD = $(CC) $(CM_CFLAGS) -MMD -MF dep/$*.d -c -o $@ $<
 DBUILD = $(CC) $(CM_CFLAGS) -MM -MG -MT obj/$*.o -MF $@ $<
 
@@ -21,7 +23,7 @@ YACC = bison
 all: cminor
 
 cminor: $(addprefix obj/,$(CM_OBJS)) | obj/
-	$(CC) $(CM_CFLAGS) -o $@ $^
+	$(CC) $(CM_CFLAGS) -o $@ $^ $(CM_LIBS)
 
 dep/:
 	mkdir -p $@

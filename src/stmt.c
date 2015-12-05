@@ -92,12 +92,16 @@ void stmt_codegen(stmt_t *this, FILE *f) {
 		case STMT_PRINT:
 			for(expr_t *expr = this->expr;
 				expr; expr = expr->next) {
+				reg_hint(REG_RDI);
 				reg = expr_codegen(expr,f,false,0);
-				fprintf(f,"mov %s, %%rdi\n",reg_name(reg));
-				reg_free(reg);
 
-				fprintf(f,"push %%r10\n");
-				fprintf(f,"push %%r11\n");
+				reg_map_v(9,(int []) {
+					reg, -1, -1, -1, -1, -1, -1, -1, -1
+				},(reg_real_t []) {
+					REG_RDI, REG_RSI, REG_RDX, REG_RCX,
+					REG_R8 , REG_R9 , REG_R10, REG_R11,
+					REG_RAX
+				},f);
 
 				fprintf(f,"call print_%s\n",
 					  expr->type->type == TYPE_BOOLEAN
@@ -109,15 +113,14 @@ void stmt_codegen(stmt_t *this, FILE *f) {
 					: expr->type->type == TYPE_STRING
 					? "string" : "<should never happen>");
 
-				fprintf(f,"pop %%r11\n");
-				fprintf(f,"pop %%r10\n");
 				reg_free(reg);
 			}
 			break;
 
 		case STMT_RETURN:
+			reg_hint(REG_RAX);
 			reg = expr_codegen(this->expr,f,false,0);
-			fprintf(f,"mov %s, %%rax\n",reg_name(reg));
+			reg_map_v(1,(int []) {reg},(reg_real_t []) {REG_RAX},f);
 			reg_free(reg);
 
 			fputs("jmp 99f\n",f);

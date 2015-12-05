@@ -12,7 +12,8 @@ symbol_t *symbol_create(str_t name, type_t *type, symbol_level_t level,
 		.type = type,
 		.level = level,
 		.prototype = prototype,
-		.func = func
+		.func = func,
+		.reg = -1
 	});
 }
 

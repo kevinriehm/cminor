@@ -5,6 +5,7 @@
 #define scan_die(...)  die_prefixed("scan error: ",__VA_ARGS__)
 #define parse_die(...) die_prefixed("parse error: ",__VA_ARGS__)
 
+#define error(...)         error_prefixed("error: ",__VA_ARGS__)
 #define resolve_error(...) error_prefixed("resolve error: ",__VA_ARGS__)
 
 void die_prefixed(char *, char *, ...);

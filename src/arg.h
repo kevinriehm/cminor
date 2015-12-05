@@ -9,6 +9,8 @@ typedef struct arg {
 	str_t name;
 	struct type *type;
 
+	struct symbol *symbol;
+
 	struct arg *next;
 } arg_t;
 

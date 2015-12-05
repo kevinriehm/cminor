@@ -22,6 +22,7 @@ typedef struct symbol {
 	decl_t *func; // Enclosing function
 
 	size_t index;
+	int reg;
 } symbol_t;
 
 typedef_htable_t(symbol_t);

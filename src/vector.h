@@ -11,6 +11,12 @@ typedef struct { \
 	_T *v; \
 } vector_t(_T)
 
+#define vector(_T, ...) (vector_t(_T)) { \
+	.c = sizeof (__VA_ARGS__)/sizeof *(__VA_ARGS__), \
+	.n = sizeof (__VA_ARGS__)/sizeof *(__VA_ARGS__), \
+	.v = memcpy(malloc(sizeof (__VA_ARGS__)),(__VA_ARGS__)) \
+}
+
 #define vector_init(_this) do { \
 	(_this).c = (_this).n = 0; \
 	(_this).v = NULL; \
@@ -27,6 +33,11 @@ typedef struct { \
 	} \
 \
 	(_this).v[(_this).n++] = (__VA_ARGS__); \
+} while(0)
+
+#define vector_resize(_this, _size) do { \
+	(_this).c = (_this).n = (_size); \
+	(_this).v = realloc((_this).v,(_this).c*sizeof *(_this).v); \
 } while(0)
 
 typedef_vector_t(char);
