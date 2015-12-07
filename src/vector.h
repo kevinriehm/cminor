@@ -3,7 +3,9 @@
 
 #include <stdlib.h>
 
-#define vector_t(_T) _T##_vector_t
+#include "pp_util.h"
+
+#define vector_t(_T) CAT(_T, _vector_t)
 
 #define typedef_vector_t(_T) \
 typedef struct { \

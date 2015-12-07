@@ -1,6 +1,7 @@
 #include <limits.h>
 #include <math.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 
 #include "reg.h"
@@ -8,14 +9,14 @@
 #include "vector.h"
 
 typedef struct {
+	bool active;
+
 	int index;
 
 	int freenext;
 } frame_slot_t;
 
 typedef_vector_t(frame_slot_t);
-
-static bool realregs[16];
 
 typedef struct {
 	bool active;
@@ -32,6 +33,7 @@ typedef struct {
 	reg_real_t real;
 
 	bool persistent; // Survives reg_free()?
+	int *lvalue; // Where the reference keeps its reg
 	int slot; // Location in stack frame
 	size_t offset; // Element within slot
 	size_t size; // Size for arrays
@@ -49,6 +51,9 @@ typedef struct {
 } vreg_t;
 
 typedef_vector_t(vreg_t);
+typedef_vector_t(vector_t(vreg_t));
+
+static bool regreals[16];
 
 static size_t framesize; // Number of words of local stack space
 
@@ -56,14 +61,20 @@ static int vregfree;
 
 static int vreglru;
 static int vreglrutail;
+static bool vregtouchable;
 
 static vector_t(vreg_t) vregs;
+static vector_t(vector_t(vreg_t)) vreglvalues;
 
 static int framefree;
 
 static vector_t(frame_slot_t) frame;
 
-// Helper funciton to get an empty stack frame slot
+static reg_real_t realhint = REG_NONE; // Hint for the next real to allocate
+
+static char *vreg_name(vreg_t *);
+
+// Helper function to get an empty stack frame slot
 static frame_slot_t *frame_slot_alloc() {
 	frame_slot_t *slot;
 
@@ -79,6 +90,8 @@ static frame_slot_t *frame_slot_alloc() {
 		slot = frame.v + framefree;
 		framefree = slot->freenext;
 	}
+
+	slot->active = true;
 
 	return slot;
 }
@@ -99,6 +112,7 @@ static vreg_t *vreg_alloc() {
 	}
 
 	vreg->active = true;
+	vreg->lvalue = NULL;
 
 	// Append to end of LRU list
 	if(vreglrutail < 0) {
@@ -112,6 +126,77 @@ static vreg_t *vreg_alloc() {
 	}
 
 	return vreg;
+}
+
+static vreg_t vreg_copy(vreg_t vreg) {
+	vreg.refstr = str_new("",0);
+	return vreg;
+}
+
+// Return the virtual register currently residing in real (if there is one)
+static vreg_t *vreg_in_real(reg_real_t real) {
+	for(size_t i = 0; i < vregs.n; i++)
+		if(vregs.v[i].active
+			&& vregs.v[i].isreal && vregs.v[i].real == real)
+			return vregs.v + i;
+
+	return NULL;
+}
+
+// Return the virtual register currently residing in slot (if there is one)
+static vreg_t *vreg_in_slot(int slot) {
+	for(size_t i = 0; i < vregs.n; i++)
+		if(vregs.v[i].active
+			&& !vregs.v[i].isreal && vregs.v[i].slot == slot)
+			return vregs.v + i;
+
+	return NULL;
+}
+
+// Move the value in from to to (to may overlap with another virtual register)
+static void vreg_move(vreg_t *from, vreg_t *to, FILE *f) {
+	int reg;
+	vreg_t *vreg;
+	bool oldtouchable;
+
+	oldtouchable = vregtouchable;
+	vregtouchable = false;
+
+	if(to->isreal) {
+		if(from->isreal && from->real == to->real)
+			return;
+
+		reg_vacate_v(1,&to->real,f);
+		fprintf(f,"\tmov %s, %s\n",vreg_name(from),vreg_name(to));
+	} else {
+		if(!from->isreal && from->slot == to->slot)
+			return;
+
+		vreg = vreg_in_slot(to->slot);
+		reg = vreg || !from->isreal ? reg_alloc(f) : -1;
+
+		if(vreg) {
+			fprintf(f,"\tmov %s, %s\n",
+				vreg_name(vreg),reg_name(reg));
+			vreg->slot = frame_slot_alloc() - frame.v;
+			fprintf(f,"\tmov %s, %s\n",
+				reg_name(reg),vreg_name(vreg));
+		}
+
+		if(from->isreal)
+			fprintf(f,"\tmov %s, %s\n",
+				vreg_name(from),vreg_name(to));
+		else {
+			fprintf(f,"\tmov %s, %s\n",
+				vreg_name(from),reg_name(reg));
+			fprintf(f,
+				"\tmov %s, %s\n",reg_name(reg),vreg_name(to));
+		}
+
+		reg_free(reg);
+	}
+
+	vregtouchable = oldtouchable;
 }
 
 // Helper function to spill the least-recently used actual register
@@ -129,24 +214,29 @@ static reg_real_t vreg_spill_lru(FILE *f) {
 
 	// Spill the register
 	slot = frame_slot_alloc();
-	fprintf(f,"mov %s, %i(%%rbp)\n",reg_name(lru),-8*slot->index);
+	fprintf(f,"\tmov %s, %i(%%rbp)\n",reg_name(lru),-8*slot->index);
 
 	vreg = vregs.v + lru;
 	vreg->isreal = false;
 	vreg->slot = slot - frame.v;
-
-	realregs[vreg->real] = false;
 
 	return vreg->real;
 }
 
 // Helper function to move a virtual register to the end of the LRU list
 static void vreg_touch(vreg_t *vreg) {
-	if(vreglrutail == vreg - vregs.v)
+	ptrdiff_t index;
+
+	index = vreg - vregs.v;
+
+	if(!vregtouchable || vreglrutail == index
+		|| index < 0 || index >= (ptrdiff_t) vregs.n)
 		return;
 
-	if(vreg->lruprev >= 0)
-		vregs.v[vreg->lruprev].lrunext = vreg->lrunext;
+	if(vreg->lruprev < 0) {
+		if(vreg->lrunext >= 0)
+			vreglru = vreg->lrunext;
+	} else vregs.v[vreg->lruprev].lrunext = vreg->lrunext;
 
 	if(vreg->lrunext >= 0)
 		vregs.v[vreg->lrunext].lruprev = vreg->lruprev;
@@ -160,38 +250,83 @@ static void vreg_touch(vreg_t *vreg) {
 	vreglrutail = vreg - vregs.v;
 }
 
+static char *vreg_name(vreg_t *vreg) {
+	vreg_touch(vreg);
+
+	switch(vreg->type) {
+	case VREG_ARRAY:
+		error("array vreg passed to reg_name()");
+		break;
+
+	case VREG_FUNCTION:
+		str_ensure_cap(&vreg->refstr,vreg->name.n);
+		sprintf(vreg->refstr.v,"%s",vreg->name.v);
+		break;
+
+	case VREG_GLOBAL:
+		str_ensure_cap(&vreg->refstr,vreg->name.n + 6);
+		sprintf(vreg->refstr.v,"%s(%%rip)",vreg->name.v);
+		break;
+
+	case VREG_REGISTER:
+		if(vreg->isreal) {
+			str_ensure_cap(&vreg->refstr,4);
+			sprintf(vreg->refstr.v,"%s",reg_name_real(vreg->real));
+		} else {
+			str_ensure_cap(
+				&vreg->refstr,ceil(log10(INT_MAX)) + 7);
+			sprintf(vreg->refstr.v,
+				"%i(%%rbp)",-8*frame.v[vreg->slot].index);
+		}
+		break;
+
+	case VREG_SUBSCRIPT:
+		error("subscript vreg passed to reg_name()");
+		break;
+	}
+
+	return vreg->refstr.v;
+}
+
 // Helper function to select an unoccupied actual register
 static reg_real_t reg_find_real() {
 	static int precedence[] = {
 		[REG_RAX] =  0,
-		[REG_RBX] =  3,
-		[REG_RCX] =  2,
-		[REG_RDX] =  2,
-		[REG_RSI] =  1,
-		[REG_RDI] =  1,
+		[REG_RBX] =  4,
+		[REG_RCX] =  3,
+		[REG_RDX] =  3,
+		[REG_RSI] =  2,
+		[REG_RDI] =  2,
 		[REG_RBP] = -1,
 		[REG_RSP] = -1,
-		[REG_R8]  =  1,
-		[REG_R9]  =  1,
+		[REG_R8]  =  2,
+		[REG_R9]  =  2,
 		[REG_R10] =  1,
 		[REG_R11] =  1,
-		[REG_R12] =  3,
-		[REG_R13] =  3,
-		[REG_R14] =  3,
-		[REG_R15] =  3,
+		[REG_R12] =  4,
+		[REG_R13] =  4,
+		[REG_R14] =  4,
+		[REG_R15] =  4,
 
 		[REG_NONE] = -1
 	};
 
 	reg_real_t real = REG_NONE;
 
+	if(realhint != REG_NONE && !regreals[realhint]) {
+		real = realhint;
+		regreals[real] = true;
+		realhint = REG_NONE;
+		return real;
+	}
+
 	for(int i = 0; i < 16; i++) {
-		if(!realregs[i] && precedence[i] > precedence[real])
+		if(!regreals[i] && precedence[i] > precedence[real])
 			real = i;
 	}
 
 	if(real != REG_NONE)
-		realregs[real] = true;
+		regreals[real] = true;
 
 	return real;
 }
@@ -211,6 +346,7 @@ void reg_reset() {
 	vregfree = -1;
 	vreglru = -1;
 	vreglrutail = -1;
+	vregtouchable = true;
 
 	vregs.n = 0;
 
@@ -219,22 +355,22 @@ void reg_reset() {
 	framefree = -1;
 
 	// Reset the real registers
-	realregs[REG_RAX] = false; // Scratch
-	realregs[REG_RBX] = false; // Scratch
-	realregs[REG_RCX] = false; // Argument 4
-	realregs[REG_RDX] = false; // Argument 3
-	realregs[REG_RSI] = false; // Argument 2
-	realregs[REG_RDI] = false; // Argument 1
-	realregs[REG_RBP] = true;  // Base pointer
-	realregs[REG_RSP] = true;  // Stack pointer
-	realregs[REG_R8]  = true;  // Argument 5
-	realregs[REG_R9]  = true;  // Argument 6
-	realregs[REG_R10] = false; // Caller-saved
-	realregs[REG_R11] = false; // Caller-saved
-	realregs[REG_R12] = false; // Scratch
-	realregs[REG_R13] = false; // Scratch
-	realregs[REG_R14] = false; // Scratch
-	realregs[REG_R15] = false; // Scratch
+	regreals[REG_RAX] = false; // Scratch
+	regreals[REG_RBX] = false; // Scratch
+	regreals[REG_RCX] = false; // Argument 4
+	regreals[REG_RDX] = false; // Argument 3
+	regreals[REG_RSI] = false; // Argument 2
+	regreals[REG_RDI] = false; // Argument 1
+	regreals[REG_RBP] = true;  // Base pointer
+	regreals[REG_RSP] = true;  // Stack pointer
+	regreals[REG_R8]  = false; // Argument 5
+	regreals[REG_R9]  = false; // Argument 6
+	regreals[REG_R10] = false; // Caller-saved
+	regreals[REG_R11] = false; // Caller-saved
+	regreals[REG_R12] = false; // Scratch
+	regreals[REG_R13] = false; // Scratch
+	regreals[REG_R14] = false; // Scratch
+	regreals[REG_R15] = false; // Scratch
 }
 
 // Returns the total size of the stack, including both locals and spill space
@@ -269,6 +405,7 @@ int reg_assign_array(size_t size) {
 	framesize += size;
 
 	vector_append(frame,(frame_slot_t) {
+		.active = true,
 		.index = framesize
 	});
 
@@ -310,6 +447,7 @@ int reg_assign_local(int index) {
 	vreg_t *vreg = vreg_alloc();
 
 	vector_append(frame,(frame_slot_t) {
+		.active = true,
 		.index = index
 	});
 
@@ -325,7 +463,7 @@ int reg_assign_local(int index) {
 int reg_assign_real(reg_real_t real) {
 	vreg_t *vreg = vreg_alloc();
 
-	realregs[real] = true;
+	regreals[real] = true;
 
 	vreg->type = VREG_REGISTER;
 	vreg->isreal = true;
@@ -355,14 +493,22 @@ int reg_assign_subscript(int base, size_t offset) {
 void reg_free(int reg) {
 	vreg_t *vreg = vregs.v + reg;
 
-	vreg_touch(vreg);
+	if(reg < 0)
+		return;
 
 	// Arrays and locals exist through entire functions
 	if(vreg->persistent)
 		return;
 
-	if(vreg->type == VREG_REGISTER && vreg->isreal)
-		realregs[vreg->real] = false;
+	if(vreg->type == VREG_REGISTER) {
+		if(vreg->isreal)
+			regreals[vreg->real] = false;
+		else {
+			frame.v[vreg->slot].active = false;
+			frame.v[vreg->slot].freenext = framefree;
+			framefree = vreg->slot;
+		}
+	}
 
 	if(vreg->lruprev < 0)
 		vreglru = vreg->lrunext;
@@ -377,9 +523,78 @@ void reg_free(int reg) {
 	vregfree = vreg - vregs.v;
 }
 
+// Release even virtual registers storing locals
+void reg_free_persistent(int reg) {
+	if(reg < 0)
+		return;
+
+	vregs.v[reg].persistent = false;
+
+	reg_free(reg);
+}
+
+// Preserve the locations of all virtual registers with lvalues
+void reg_record_lvalues() {
+	vector_t(vreg_t) saved;
+
+	vector_init(saved);
+
+	for(size_t i = 0; i < vregs.n; i++)
+		if(vregs.v[i].active && vregs.v[i].lvalue)
+			vector_append(saved,vreg_copy(vregs.v[i]));
+
+	vector_append(vreglvalues,saved);
+}
+
+// Restore all virtual registers with lvalues to their old locations
+void reg_restore_lvalues(FILE *f) {
+	vector_t(vreg_t) saved;
+
+	saved = vreglvalues.v[vreglvalues.n - 1];
+	vreglvalues.n--;
+
+	for(size_t si = 0; si < saved.n; si++) {
+		for(size_t vi = 0; vi < vregs.n; vi++) {
+			if(vregs.v[vi].active
+				&& saved.v[si].lvalue == vregs.v[vi].lvalue) {
+				vreg_move(vregs.v + vi,saved.v + si,f);
+
+				if(vregs.v[vi].isreal)
+					regreals[vregs.v[vi].real] = false;
+
+				vregs.v[vi].isreal = saved.v[si].isreal;
+				vregs.v[vi].real = saved.v[si].real;
+				vregs.v[vi].slot = saved.v[si].slot;
+
+				if(vregs.v[vi].isreal)
+					regreals[vregs.v[vi].real] = true;
+
+				break;
+			}
+		}
+	}
+
+	vector_free(saved);
+}
+
 // Returns whether the virtual register currently resides in an actual register
 bool reg_is_real(int reg) {
 	return vregs.v[reg].isreal;
+}
+
+// Returns whether the virtual register represents a persistent (named) value
+bool reg_is_persistent(int reg) {
+	return vregs.v[reg].persistent;
+}
+
+// Returns where reg is stored
+int *reg_get_lvalue(int reg) {
+	return vregs.v[reg].lvalue;
+}
+
+// Sets where reg is stored
+void reg_set_lvalue(int reg, int *lvalue) {
+	vregs.v[reg].lvalue = lvalue;
 }
 
 // Moves the virtual register to an actual register, if it is not there already
@@ -399,9 +614,24 @@ void reg_make_one_real(int reg1, int reg2, FILE *f) {
 		reg_make_real(reg1,f);
 }
 
+// Convenience function to ensure reg is non-persistent
+void reg_make_temporary(int *reg, FILE *f) {
+	int newreg;
+
+	vreg_t *vreg = vregs.v + *reg;
+
+	vreg_touch(vreg);
+
+	if(vreg->persistent) {
+		newreg = reg_alloc(f);
+		fprintf(f,"\tmov %s, %s\n",reg_name(*reg),reg_name(newreg));
+		*reg = newreg;
+	}
+}
+
 // Convenience function to ensure reg1 is non-persistent
 // and at least one of reg1 and reg2 is real
-void reg_make_one_temporary(int *reg1, int *reg2, FILE *f) {
+void reg_make_one_temporary(int *reg1, int *reg2, FILE *f, bool *swapped) {
 	int reg;
 	vreg_t *vreg;
 
@@ -421,12 +651,16 @@ void reg_make_one_temporary(int *reg1, int *reg2, FILE *f) {
 		vreg = vreg1;
 		vreg1 = vreg2;
 		vreg2 = vreg;
-	}
+
+		if(swapped)
+			*swapped = true;
+	} else if(swapped)
+		*swapped = false;
 
 	// Make sure reg1 is temporary
 	if(vreg1->persistent) {
 		reg = reg_alloc(f);
-		fprintf(f,"mov %s, %s\n",reg_name(*reg1),reg_name(reg));
+		fprintf(f,"\tmov %s, %s\n",reg_name(*reg1),reg_name(reg));
 		*reg1 = reg;
 		vreg1 = vregs.v + *reg1;
 	}
@@ -447,7 +681,7 @@ void reg_make_persistent(int reg) {
 
 // Try to allocate real for the next virtual register
 void reg_hint(reg_real_t real) {
-	printf("warning: reg_hint() not implemented\n");
+	realhint = real;
 }
 
 // Move the n virtual registers in regs to the actual registers in reals
@@ -464,10 +698,10 @@ void reg_map_v(int n, int *regs, reg_real_t *reals, FILE *f) {
 		if(regs[i] < 0 || !vreg->isreal || vreg->real == reals[i])
 			continue;
 
-		if(realregs[reals[i]])
-			fprintf(f,"xchg %s, %s\n",
+		if(regreals[reals[i]])
+			fprintf(f,"\txchg %s, %s\n",
 				reg_name(regs[i]),reg_name_real(reals[i]));
-		else fprintf(f,"mov %s, %s\n",
+		else fprintf(f,"\tmov %s, %s\n",
 			reg_name(regs[i]),reg_name_real(reals[i]));
 
 		for(size_t vi = 0; vi < vregs.n; vi++)
@@ -480,7 +714,7 @@ void reg_map_v(int n, int *regs, reg_real_t *reals, FILE *f) {
 
 	// We now block off the reals to prevent accidentally filling them
 	for(int i = 0; i < n; i++)
-		realregs[i] = true;
+		regreals[i] = true;
 
 	// Next, move regs in from the stack
 	for(int i = 0; i < n; i++) {
@@ -493,7 +727,7 @@ void reg_map_v(int n, int *regs, reg_real_t *reals, FILE *f) {
 			if(vregs.v[vi].active && vregs.v[vi].isreal
 				&& vregs.v[vi].real == reals[i]) {
 				if(real = reg_find_real(), real == REG_NONE) {
-					fprintf(f,"xchg %s, %s\n",
+					fprintf(f,"\txchg %s, %s\n",
 						reg_name(regs[i]),
 						reg_name(vi));
 
@@ -503,10 +737,10 @@ void reg_map_v(int n, int *regs, reg_real_t *reals, FILE *f) {
 					vreg->isreal = true;
 					vreg->real = reals[i];
 				} else {
-					fprintf(f,"mov %s, %s\n",
+					fprintf(f,"\tmov %s, %s\n",
 						reg_name(vi),
 						reg_name_real(real));
-					fprintf(f,"mov %s, %s\n",
+					fprintf(f,"\tmov %s, %s\n",
 						reg_name(regs[i]),
 						reg_name_real(reals[i]));
 
@@ -520,7 +754,7 @@ void reg_map_v(int n, int *regs, reg_real_t *reals, FILE *f) {
 			}
 		}
 
-		fprintf(f,"mov %s, %s\n",
+		fprintf(f,"\tmov %s, %s\n",
 			reg_name(regs[i]),reg_name_real(reals[i]));
 
 	next_stack_reg:
@@ -544,79 +778,53 @@ void reg_map_v(int n, int *regs, reg_real_t *reals, FILE *f) {
 void reg_vacate_v(int n, reg_real_t *reals, FILE *f) {
 	vreg_t *vreg;
 	reg_real_t real;
+	bool oldtouchable;
 	frame_slot_t *slot;
 
 	// Block these off for the duration of the process
 	for(int i = 0; i < n; i++)
-		realregs[reals[i]] = true;
+		regreals[reals[i]] = true;
 
 	// Vacate the registers
+	oldtouchable = vregtouchable;
+	vregtouchable = false;
 	for(int mru = vreglrutail; mru >= 0; mru = vregs.v[mru].lruprev) {
 		for(int i = 0; vregs.v[mru].isreal && i < n; i++) {
-			if(vregs.v[mru].real != reals[i])
+			vreg = vregs.v + mru;
+
+			if(!vreg->active || vreg->real != reals[i])
 				continue;
 
 			// Vacate to another register, if possible
 			if(real = reg_find_real(), real != REG_NONE) {
-				realregs[real] = false;
-				reg_map_v(1,(int []) {mru},
-					(reg_real_t []) {real},f);
-				break;
+				fprintf(f,"\tmov %s, %s\n",
+					reg_name(mru),reg_name_real(real));
+
+				vreg->real = real;
 			} else { // Otherwise, spill to the stack
 				slot = frame_slot_alloc();
-				fprintf(f,"mov %s, %i(%%rbp)\n",
+				fprintf(f,"\tmov %s, %i(%%rbp)\n",
 					reg_name(mru),-8*slot->index);
 
-				vreg = vregs.v + mru;
 				vreg->isreal = false;
 				vreg->slot = slot - frame.v;
 			}
+
+			break;
 		}
 	}
+	vregtouchable = oldtouchable;
 
 	// The registers are now free for use
 	for(int i = 0; i < n; i++)
-		realregs[reals[i]] = false;
+		regreals[reals[i]] = false;
 }
 
 char *reg_name(int reg) {
-	vreg_t *vreg = vregs.v + reg;
+	if(reg < 0)
+		return "<should never happen>";
 
-	vreg_touch(vreg);
-
-	switch(vreg->type) {
-	case VREG_ARRAY:
-		error("array vreg passed to reg_name()");
-		break;
-
-	case VREG_FUNCTION:
-		str_ensure_cap(&vreg->refstr,vreg->name.n);
-		sprintf(vreg->refstr.v,"%s",vreg->name.v);
-		break;
-
-	case VREG_GLOBAL:
-		str_ensure_cap(&vreg->refstr,vreg->name.n + 6);
-		sprintf(vreg->refstr.v,"%s(%%rip)",vreg->name.v);
-		break;
-
-	case VREG_REGISTER:
-		if(vreg->isreal) {
-			str_ensure_cap(&vreg->refstr,3);
-			sprintf(vreg->refstr.v,"%s",reg_name_real(vreg->real));
-		} else {
-			str_ensure_cap(
-				&vreg->refstr,ceil(log10(INT_MAX)) + 7);
-			sprintf(vreg->refstr.v,
-				"%i(%%rbp)",-frame.v[vreg->slot].index);
-		}
-		break;
-
-	case VREG_SUBSCRIPT:
-		error("subscript vreg passed to reg_name()");
-		break;
-	}
-
-	return vreg->refstr.v;
+	return vreg_name(vregs.v + reg);
 }
 
 char *reg_name_8l(int reg) {

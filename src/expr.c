@@ -235,8 +235,8 @@ int expr_codegen(expr_t *this, FILE *f, bool wantaddr, int outindex) {
 	expr_t *expr;
 	size_t expri, size;
 	vector_t(int) regs;
-	int left, reg, right;
 	reg_real_t *realregs;
+	int left, *lvalue, reg, right;
 
 	if(!this)
 		return -1;
@@ -252,21 +252,30 @@ int expr_codegen(expr_t *this, FILE *f, bool wantaddr, int outindex) {
 
 	switch(this->op) {
 	case EXPR_ADD:
-		reg_make_one_real(left,right,f);
-		fprintf(f,"add %s, %s\n",reg_name(right),reg_name(left));
+		reg_make_one_temporary(&left,&right,f,NULL);
+		fprintf(f,"\tadd %s, %s\n",reg_name(right),reg_name(left));
 		reg_free(right);
 		return left;
 
 	case EXPR_AND:
-		reg_make_one_real(left,right,f);
-		fprintf(f,"and %s, %s\n",reg_name(right),reg_name(left));
+		reg_make_one_temporary(&left,&right,f,NULL);
+		fprintf(f,"\tand %s, %s\n",reg_name(right),reg_name(left));
 		reg_free(right);
 		return left;
 
 	case EXPR_ASSIGN:
-		reg_make_one_real(left,right,f);
-		fprintf(f,"mov %s, %s\n",reg_name(right),reg_name(left));
-		reg_free(left);
+		if(lvalue = reg_get_lvalue(left)) {
+			reg_free_persistent(left);
+			reg_make_temporary(&right,f);
+			*lvalue = right;
+			reg_make_persistent(right);
+			reg_set_lvalue(right,lvalue);
+		} else {
+			reg_make_one_real(left,right,f);
+			fprintf(f,"\tmov %s, %s\n",
+				reg_name(right),reg_name(left));
+			reg_free(left);
+		}
 		return right;
 
 	case EXPR_CALL:
@@ -275,7 +284,7 @@ int expr_codegen(expr_t *this, FILE *f, bool wantaddr, int outindex) {
 		// Push arguments past the sixth onto the stack
 		if(this->left->type->nargs > 6) {
 			if(this->left->type->nargs&1)
-				fputs("sub $8, %%rsp\n",f);
+				fputs("\tsub $8, %%rsp\n",f);
 
 			expr_codegen_push_args(
 				this->right->next->next->next->next->next,f);
@@ -283,96 +292,110 @@ int expr_codegen(expr_t *this, FILE *f, bool wantaddr, int outindex) {
 
 		// Generate the first six or fewer arguments
 		realregs = (reg_real_t []) {
-			REG_RDI, REG_RSI, REG_RDX, REG_RCX, REG_R8, REG_R9
+			REG_RDI, REG_RSI, REG_RDX, REG_RCX, REG_R8, REG_R9,
+			REG_RAX, REG_R10, REG_R11
 		};
 
 		for(expr_t *expr = this->right;
 			expr && regs.n < 6; expr = expr->next) {
 			reg_hint(realregs[regs.n]);
-			vector_append(regs,expr_codegen(expr,f,false,0));
+			reg = expr_codegen(expr,f,false,0);
+			reg_make_temporary(&reg,f);
+
+			vector_append(regs,reg);
 		}
 
-		while(regs.n < 6)
+		while(regs.n < 9)
 			vector_append(regs,-1);
 
-		reg_map_v(6,regs.v,realregs,f);
+		reg_map_v(9,regs.v,realregs,f);
+
+		fprintf(f,"\tcall %s\n",reg_name(left));
+		reg_free(left);
+
+		for(size_t i = 0; i < regs.n; i++)
+			reg_free(regs.v[i]);
 
 		vector_free(regs);
-
-		fprintf(f,"call %s\n",reg_name(left));
-		reg_free(left);
 
 		return reg_assign_real(REG_RAX);
 
 	case EXPR_DECREMENT:
 		reg = reg_alloc(f);
-		fprintf(f,"mov $-1, %s\n",reg_name(reg));
-		fprintf(f,"xadd %s, %s\n",reg_name(reg),reg_name(left));
+		fprintf(f,"\tmov $-1, %s\n",reg_name(reg));
+		fprintf(f,"\txadd %s, %s\n",reg_name(reg),reg_name(left));
 		reg_free(left);
 		return reg;
 
 	case EXPR_DIVIDE:
+		reg_make_temporary(&left,f);
 		reg_vacate_v(2,(reg_real_t []) {REG_RAX, REG_RDX},f);
-		fprintf(f,"mov %s, %%rax\n",reg_name(left));
-		fprintf(f,"cqo\n");
-		fprintf(f,"idiv %s\n",reg_name(right));
-		fprintf(f,"mov %%rax, %s\n",reg_name(left));
+		fprintf(f,"\tmov %s, %%rax\n",reg_name(left));
+		fprintf(f,"\tcqo\n");
+		fprintf(f,"\tidivq %s\n",reg_name(right));
+		fprintf(f,"\tmov %%rax, %s\n",reg_name(left));
 		reg_free(right);
 		return left;
 
 	case EXPR_EXPONENT:
 		reg = reg_alloc(f);
-		fprintf(f,"mov $1, %s\n",reg_name(reg));
-		fprintf(f,"cmp $0, %s\n",reg_name(right));
-		fprintf(f,"jle 0f\n");
-		fprintf(f,"3: cmp $1, %s\n",reg_name(right));
-		fprintf(f,"jle 2f\n");
-		fprintf(f,"shr %s\n",reg_name(right));
-		fprintf(f,"jnc 4f\n");
-		fprintf(f,"imul %s, %s\n",reg_name(left),reg_name(reg));
-		fprintf(f,"4: imul %s, %s\n",
-			reg_name(left),reg_name(left));
-		fprintf(f,"jmp 3b\n");
-		fprintf(f,"0: sete %s\n",reg_name_8l(left));
-		fprintf(f,"movzx %s, %s\n",reg_name_8l(left),reg_name(left));
-		fprintf(f,"2: imul %s, %s\n",reg_name(reg),reg_name(left));
+		reg_make_temporary(&left,f);
+		reg_make_temporary(&right,f);
+
+		fprintf(f,"\tmov $1, %s\n",reg_name(reg));
+		fprintf(f,"\tcmp $0, %s\n",reg_name(right));
+		fprintf(f,"\tjle 0f\n");
+		fprintf(f,"3:\tcmp $1, %s\n",reg_name(right));
+		fprintf(f,"\tjle 2f\n");
+		fprintf(f,"\tshr %s\n",reg_name(right));
+		fprintf(f,"\tjnc 4f\n");
+		fprintf(f,"\timul %s, %s\n",reg_name(left),reg_name(reg));
+		fprintf(f,"4:\timul %s, %s\n",reg_name(left),reg_name(left));
+		fprintf(f,"\tjmp 3b\n");
+		fprintf(f,"0:\tsete %s\n",reg_name_8l(left));
+		fprintf(f,"\tmovzx %s, %s\n",reg_name_8l(left),reg_name(left));
+		fprintf(f,"2:\timul %s, %s\n",reg_name(reg),reg_name(left));
 		fprintf(f,"9:\n");
+
+		reg_free(reg);
 		reg_free(right);
 		return left;
 
 	case EXPR_INCREMENT:
 		reg = reg_alloc(f);
-		fprintf(f,"mov $1, %s\n",reg_name(reg));
-		fprintf(f,"xadd %s, %s\n",reg_name(reg),reg_name(left));
+		fprintf(f,"\tmov $1, %s\n",reg_name(reg));
+		fprintf(f,"\txadd %s, %s\n",reg_name(reg),reg_name(left));
 		reg_free(left);
 		return reg;
 
 	case EXPR_MULTIPLY:
-		reg_make_one_real(left,right,f);
-		fprintf(f,"imul %s, %s\n",reg_name(right),reg_name(left));
+		reg_make_one_temporary(&left,&right,f,NULL);
+		fprintf(f,"\timul %s, %s\n",reg_name(right),reg_name(left));
 		reg_free(right);
 		return left;
 
 	case EXPR_NEGATE:
-		fprintf(f,"neg %s\n",reg_name(left));
+		reg_make_temporary(&left,f);
+		fprintf(f,"\tneg %s\n",reg_name(left));
 		return left;
 
 	case EXPR_NOT:
-		fprintf(f,"xor $1, %s\n",reg_name(left));
+		reg_make_temporary(&left,f);
+		fprintf(f,"\txor $1, %s\n",reg_name(left));
 		return left;
 
 	case EXPR_OR:
-		reg_make_one_real(left,right,f);
-		fprintf(f,"or %s, %s\n",reg_name(right),reg_name(left));
+		reg_make_one_temporary(&left,&right,f,NULL);
+		fprintf(f,"\tor %s, %s\n",reg_name(right),reg_name(left));
 		reg_free(right);
 		return left;
 
 	case EXPR_REMAINDER:
 		reg_vacate_v(2,(reg_real_t []) {REG_RAX, REG_RDX},f);
-		fprintf(f,"mov %s, %%rax\n",reg_name(left));
-		fprintf(f,"cqo\n");
-		fprintf(f,"idiv %s\n",reg_name(right));
-		fprintf(f,"mov %%rdx, %s\n",reg_name(left));
+		fprintf(f,"\tmov %s, %%rax\n",reg_name(left));
+		fprintf(f,"\tcqo\n");
+		fprintf(f,"\tidivq %s\n",reg_name(right));
+		fprintf(f,"\tmov %%rdx, %s\n",reg_name(left));
 		reg_free(right);
 		return left;
 
@@ -380,15 +403,15 @@ int expr_codegen(expr_t *this, FILE *f, bool wantaddr, int outindex) {
 		reg_make_real(left,f);
 		reg_make_real(right,f);
 		if(size = type_size(this->left->type->subtype), size > 1)
-			fprintf(f,"imul $%zu, %s\n",size,reg_name(right));
-		fprintf(f,"%s (%s,%s,8), %s\n",wantaddr ? "lea" : "mov",
+			fprintf(f,"\timul $%zu, %s\n",size,reg_name(right));
+		fprintf(f,"\t%s (%s,%s,8), %s\n",wantaddr ? "lea" : "mov",
 			reg_name(left),reg_name(right),reg_name(left));
 		reg_free(right);
 		return left;
 
 	case EXPR_SUBTRACT:
-		reg_make_one_temporary(&left,&right,f);
-		fprintf(f,"sub %s, %s\n",reg_name(right),reg_name(left));
+		reg_make_temporary(&left,f);
+		fprintf(f,"\tsub %s, %s\n",reg_name(right),reg_name(left));
 		reg_free(right);
 		return left;
 
@@ -407,7 +430,7 @@ int expr_codegen(expr_t *this, FILE *f, bool wantaddr, int outindex) {
 			reg = expr_codegen(expr,f,false,outindex - expri*size);
 			if(reg >= 0) {
 				reg_make_real(reg,f);
-				fprintf(f,"mov %s, -%zu(%%rbp)\n",
+				fprintf(f,"\tmov %s, -%zu(%%rbp)\n",
 					reg_name(reg),8*(outindex - expri));
 				reg_free(reg);
 			}
@@ -416,17 +439,17 @@ int expr_codegen(expr_t *this, FILE *f, bool wantaddr, int outindex) {
 
 	case EXPR_BOOLEAN:
 		reg = reg_alloc(f);
-		fprintf(f,"mov $%i, %s\n",(int) this->b,reg_name(reg));
+		fprintf(f,"\tmov $%i, %s\n",(int) this->b,reg_name(reg));
 		return reg;
 
 	case EXPR_CHARACTER:
 		reg = reg_alloc(f);
-		fprintf(f,"mov $%i, %s\n",(int) this->c,reg_name(reg));
+		fprintf(f,"\tmov $%i, %s\n",(int) this->c,reg_name(reg));
 		return reg;
 
 	case EXPR_INTEGER:
 		reg = reg_alloc(f);
-		fprintf(f,"mov $%"PRIi64", %s\n",this->i,reg_name(reg));
+		fprintf(f,"\tmov $%"PRIi64", %s\n",this->i,reg_name(reg));
 		return reg;
 
 	case EXPR_REFERENCE:
@@ -447,7 +470,7 @@ int expr_codegen(expr_t *this, FILE *f, bool wantaddr, int outindex) {
 
 	case EXPR_STRING:
 		reg = reg_alloc(f);
-		fprintf(f,"lea string$%zu(%%rip), %s\n",
+		fprintf(f,"\tlea string$%zu(%%rip), %s\n",
 			datastrings.n,reg_name(reg));
 		vector_append(datastrings,this->s);
 		return reg;
@@ -468,19 +491,14 @@ int expr_codegen_compare(expr_t *this, FILE *f, int left, int right) {
 		[EXPR_NE] = "ne"
 	};
 
-	int reg;
+	bool swapped;
 
-	reg_make_one_real(left,right,f);
+	reg_make_one_temporary(&left,&right,f,&swapped);
 
-	if(!reg_is_real(left)) {
-		reg = left;
-		left = right;
-		right = reg;
-	}
-
-	fprintf(f,"cmp %s, %s\n",reg_name(right),reg_name(left));
-	fprintf(f,"set%s %s\n",suffixes[this->op],reg_name_8l(left));
-	fprintf(f,"movzx %s, %s\n",reg_name_8l(left),reg_name(left));
+	fprintf(f,"\tcmp %s, %s\n",reg_name(swapped ? left : right),
+		reg_name(swapped ? right : left));
+	fprintf(f,"\tset%s %s\n",suffixes[this->op],reg_name_8l(left));
+	fprintf(f,"\tmovzx %s, %s\n",reg_name_8l(left),reg_name(left));
 
 	reg_free(right);
 
@@ -496,7 +514,7 @@ void expr_codegen_push_args(expr_t *arg, FILE *f) {
 	expr_codegen_push_args(arg->next,f);
 
 	reg = expr_codegen(arg,f,false,0);
-	fprintf(f,"pushq %s\n",reg_name(reg));
+	fprintf(f,"\tpushq %s\n",reg_name(reg));
 	reg_free(reg);
 }
 
@@ -687,7 +705,7 @@ void expr_print_asm(expr_t *this, FILE *f, bool first) {
 }
 
 void expr_print_asm_strings(FILE *f) {
-	fputs(".data\n",f);
+	fputs("\t.data\n",f);
 
 	for(size_t si = 0; si < datastrings.n; si++) {
 		fprintf(f,"string$%zu: .string \"",si);

@@ -53,11 +53,13 @@ void stmt_codegen(stmt_t *this, FILE *f) {
 
 			fprintf(f,".Lstmt_%zu:\n",label1);
 
+			reg_record_lvalues();
+
 			// Empty test expression means infinite loop
 			if(this->expr) {
 				reg = expr_codegen(this->expr,f,false,0);
-				fprintf(f,"cmp $0, %s\n",reg_name(reg));
-				fprintf(f,"je .Lstmt_%zu\n",label2);
+				fprintf(f,"\tcmp $0, %s\n",reg_name(reg));
+				fprintf(f,"\tje .Lstmt_%zu\n",label2);
 				reg_free(reg);
 			}
 
@@ -66,7 +68,9 @@ void stmt_codegen(stmt_t *this, FILE *f) {
 			reg = expr_codegen(this->next_expr,f,false,0);
 			reg_free(reg);
 
-			fprintf(f,"jmp .Lstmt_%zu\n",label1);
+			reg_restore_lvalues(f);
+
+			fprintf(f,"\tjmp .Lstmt_%zu\n",label1);
 			fprintf(f,".Lstmt_%zu:\n",label2);
 			break;
 
@@ -75,16 +79,24 @@ void stmt_codegen(stmt_t *this, FILE *f) {
 			label2 = nlabels++;
 
 			reg = expr_codegen(this->expr,f,false,0);
-			fprintf(f,"cmp $0, %s\n",reg_name(reg));
-			fprintf(f,"je .Lstmt_%zu\n",label1);
+			fprintf(f,"\tcmp $0, %s\n",reg_name(reg));
+			fprintf(f,"\tje .Lstmt_%zu\n",label1);
 			reg_free(reg);
+
+			reg_record_lvalues();
 
 			stmt_codegen(this->body,f);
 
-			fprintf(f,"jmp .Lstmt_%zu\n",label2);
+			reg_restore_lvalues(f);
+
+			fprintf(f,"\tjmp .Lstmt_%zu\n",label2);
 			fprintf(f,".Lstmt_%zu:\n",label1);
 
+			reg_record_lvalues();
+
 			stmt_codegen(this->else_body,f);
+
+			reg_restore_lvalues(f);
 
 			fprintf(f,".Lstmt_%zu:\n",label2);
 			break;
@@ -94,6 +106,7 @@ void stmt_codegen(stmt_t *this, FILE *f) {
 				expr; expr = expr->next) {
 				reg_hint(REG_RDI);
 				reg = expr_codegen(expr,f,false,0);
+				reg_make_temporary(&reg,f);
 
 				reg_map_v(9,(int []) {
 					reg, -1, -1, -1, -1, -1, -1, -1, -1
@@ -103,7 +116,7 @@ void stmt_codegen(stmt_t *this, FILE *f) {
 					REG_RAX
 				},f);
 
-				fprintf(f,"call print_%s\n",
+				fprintf(f,"\tcall print_%s\n",
 					  expr->type->type == TYPE_BOOLEAN
 					? "boolean"
 					: expr->type->type == TYPE_CHARACTER
@@ -120,10 +133,11 @@ void stmt_codegen(stmt_t *this, FILE *f) {
 		case STMT_RETURN:
 			reg_hint(REG_RAX);
 			reg = expr_codegen(this->expr,f,false,0);
-			reg_map_v(1,(int []) {reg},(reg_real_t []) {REG_RAX},f);
+			reg_map_v(1,
+				(int []) {reg},(reg_real_t []) {REG_RAX},f);
 			reg_free(reg);
 
-			fputs("jmp 99f\n",f);
+			fputs("\tjmp 99f\n",f);
 			break;
 		}
 

@@ -31,14 +31,14 @@ void decl_codegen(decl_t *this, FILE *f) {
 		if(type_is(this->type,TYPE_FUNCTION) && this->body) {
 			reg_reset();
 
-			fputs(".text\n",f);
-			fprintf(f,".globl %s\n",this->name.v);
+			fputs("\t.text\n",f);
+			fprintf(f,"\t.globl %s\n",this->name.v);
 			fprintf(f,"%s:\n",this->name.v);
 
-			fputs("push %rbp\n",f);
-			fputs("mov %rsp, %rbp\n",f);
+			fputs("\tpush %rbp\n",f);
+			fputs("\tmov %rsp, %rbp\n",f);
 
-			fprintf(f,"sub $%s$spill, %%rsp\n",this->name.v);
+			fprintf(f,"\tsub $%s$spill, %%rsp\n",this->name.v);
 
 			// Assign the arguments to virtual registers
 			realregs = (reg_real_t []) {
@@ -47,10 +47,14 @@ void decl_codegen(decl_t *this, FILE *f) {
 			};
 
 			for(arg = this->type->args, argi = 0;
-				arg; arg = arg->next, argi++)
+				arg; arg = arg->next, argi++) {
 				arg->symbol->reg = argi < 6
 					? reg_assign_real(realregs[argi])
 					: reg_assign_local(5 - argi);
+				reg_make_persistent(arg->symbol->reg);
+				reg_set_lvalue(
+					arg->symbol->reg,&arg->symbol->reg);
+			}
 
 			// Preserve the callee-saved registers
 			regs = (int []) {
@@ -69,15 +73,15 @@ void decl_codegen(decl_t *this, FILE *f) {
 				REG_RBX, REG_R12, REG_R13, REG_R14, REG_R15
 			},f);
 
-			fputs("mov %rbp, %rsp\n",f);
-			fputs("pop %rbp\n",f);
-			fputs("ret\n",f);
+			fputs("\tmov %rbp, %rsp\n",f);
+			fputs("\tpop %rbp\n",f);
+			fputs("\tret\n",f);
 
-			fprintf(f,".set %s$spill, %zu\n",
+			fprintf(f,"\t.set %s$spill, %zu\n",
 				this->name.v,8*reg_frame_size());
 		} else if(!type_is(this->type,TYPE_FUNCTION)
 			&& this->symbol->level == SYMBOL_GLOBAL) {
-			fprintf(f,".data\n.globl %s\n%s: ",this->name.v,
+			fprintf(f,"\t.data\n.globl %s\n%s: ",this->name.v,
 				this->name.v);
 
 			if(this->value)
@@ -86,12 +90,19 @@ void decl_codegen(decl_t *this, FILE *f) {
 			else fprintf(f,".space %zu\n",8*type_size(this->type));
 
 			fputc('\n',f);
-		} else if(this->value) { // Local variable
+		} else if(this->value) {
 			this->symbol->reg = expr_codegen(this->value,f,false,
 				this->symbol->func->type->nargs
 					+ this->symbol->index
 					+ type_size(this->value->type));
 			reg_make_persistent(this->symbol->reg);
+			reg_set_lvalue(
+				this->symbol->reg,&this->symbol->reg);
+		} else if(this->symbol->level == SYMBOL_LOCAL) {
+			this->symbol->reg = reg_alloc(f);
+			reg_make_persistent(this->symbol->reg);
+			reg_set_lvalue(
+				this->symbol->reg,&this->symbol->reg);
 		}
 
 		this = this->next;

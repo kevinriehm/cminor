@@ -40,13 +40,23 @@ int reg_assign_global(str_t);
 int reg_assign_local(int);
 int reg_assign_real(reg_real_t);
 int reg_assign_subscript(int, size_t);
+
 void reg_free(int);
+void reg_free_persistent(int);
+
+void reg_record_lvalues(void);
+void reg_restore_lvalues(FILE *f);
 
 bool reg_is_real(int);
+bool reg_is_persistent(int);
+
+int *reg_get_lvalue(int);
+void reg_set_lvalue(int, int *);
 
 void reg_make_real(int, FILE *);
 void reg_make_one_real(int, int, FILE *);
-void reg_make_one_temporary(int *, int *, FILE *);
+void reg_make_temporary(int *, FILE *);
+void reg_make_one_temporary(int *, int *, FILE *, bool *);
 void reg_make_persistent(int);
 
 void reg_hint(reg_real_t);
