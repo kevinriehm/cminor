@@ -32,7 +32,9 @@ void stmt_codegen(stmt_t *this, FILE *f) {
 	while(this) {
 		switch(this->op) {
 		case STMT_BLOCK:
+			reg_block_enter();
 			stmt_codegen(this->body,f);
+			reg_block_leave();
 			break;
 
 		case STMT_DECL:

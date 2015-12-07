@@ -44,6 +44,7 @@ typedef struct { \
 
 typedef_vector_t(char);
 typedef_vector_t(int);
+typedef_vector_t(size_t);
 
 #endif
 

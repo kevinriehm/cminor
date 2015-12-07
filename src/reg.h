@@ -44,6 +44,9 @@ int reg_assign_subscript(int, size_t);
 void reg_free(int);
 void reg_free_persistent(int);
 
+void reg_block_enter(void);
+void reg_block_leave(void);
+
 void reg_record_lvalues(void);
 void reg_restore_lvalues(FILE *f);
 

@@ -1,0 +1,62 @@
+main: function integer () = {
+	x: integer = 5;
+	print "x = ", x, "\n";
+
+	{
+		print "Block 1:\n";
+		y0: integer = 0;
+		y1: integer = 11;
+		y2: integer = 22;
+		y3: integer = 33;
+		y4: integer = 44;
+		y5: integer = 55;
+		y6: integer = 66;
+		y7: integer = 77;
+		y8: integer = 88;
+		y9: integer = 99;
+		y10: integer = 1010;
+		print "x = ", x, "\n";
+		print "y0 = ", y0, "\n";
+		print "y1 = ", y1, "\n";
+		print "y2 = ", y2, "\n";
+		print "y3 = ", y3, "\n";
+		print "y4 = ", y4, "\n";
+		print "y5 = ", y5, "\n";
+		print "y6 = ", y6, "\n";
+		print "y7 = ", y7, "\n";
+		print "y8 = ", y8, "\n";
+		print "y9 = ", y9, "\n";
+		print "y10 = ", y10, "\n";
+	}
+
+	{
+		print "Block 2:\n";
+		x:integer = 99;
+		y0: integer = -0;
+		y1: integer = -11;
+		y2: integer = -22;
+		y3: integer = -33;
+		y4: integer = -44;
+		y5: integer = -55;
+		y6: integer = -66;
+		y7: integer = -77;
+		y8: integer = -88;
+		y9: integer = -99;
+		y10: integer = -1010;
+		print "x = ", x, "\n";
+		print "y0 = ", y0, "\n";
+		print "y1 = ", y1, "\n";
+		print "y2 = ", y2, "\n";
+		print "y3 = ", y3, "\n";
+		print "y4 = ", y4, "\n";
+		print "y5 = ", y5, "\n";
+		print "y6 = ", y6, "\n";
+		print "y7 = ", y7, "\n";
+		print "y8 = ", y8, "\n";
+		print "y9 = ", y9, "\n";
+		print "y10 = ", y10, "\n";
+	}
+
+	return 0;
+}
+

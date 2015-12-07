@@ -55,7 +55,9 @@ typedef_vector_t(vector_t(vreg_t));
 
 static bool regreals[16];
 
-static size_t framesize; // Number of words of local stack space
+static size_t framesize; // Number of words of local stack space in block
+static size_t maxframesize; // Number of words of local stack space in function
+static vector_t(size_t) framesizes; // Stack space at each block level
 
 static int vregfree;
 
@@ -80,6 +82,8 @@ static frame_slot_t *frame_slot_alloc() {
 
 	if(framefree < 0) { // Need new slot
 		framesize++;
+		if(framesize > maxframesize)
+			maxframesize = framesize;
 
 		vector_append(frame,(frame_slot_t) {
 			.index = framesize
@@ -352,6 +356,9 @@ void reg_reset() {
 
 	// Reset the stack
 	framesize = 0;
+	maxframesize = 0;
+	vector_init(framesizes);
+
 	framefree = -1;
 
 	// Reset the real registers
@@ -375,7 +382,7 @@ void reg_reset() {
 
 // Returns the total size of the stack, including both locals and spill space
 size_t reg_frame_size() {
-	return (framesize + 1)/2*2;
+	return (maxframesize + 1)/2*2;
 }
 
 // Either finds a unused register or makes room by spilling an occupied one
@@ -403,6 +410,8 @@ int reg_assign_array(size_t size) {
 	vreg_t *vreg = vreg_alloc();
 
 	framesize += size;
+	if(framesize > maxframesize)
+		maxframesize = framesize;
 
 	vector_append(frame,(frame_slot_t) {
 		.active = true,
@@ -531,6 +540,14 @@ void reg_free_persistent(int reg) {
 	vregs.v[reg].persistent = false;
 
 	reg_free(reg);
+}
+
+void reg_block_enter() {
+	vector_append(framesizes,framesize);
+}
+
+void reg_block_leave() {
+	framesize = framesizes.v[--framesizes.n];
 }
 
 // Preserve the locations of all virtual registers with lvalues
