@@ -25,6 +25,7 @@ typedef struct {
 		VREG_ARRAY,
 		VREG_FUNCTION,
 		VREG_GLOBAL,
+		VREG_POINTER,
 		VREG_REGISTER,
 		VREG_SUBSCRIPT
 	} type;
@@ -35,8 +36,9 @@ typedef struct {
 	bool persistent; // Survives reg_free()?
 	int *lvalue; // Where the reference keeps its reg
 	int slot; // Location in stack frame
-	size_t offset; // Element within slot
+	int offset; // Element within slot
 	size_t size; // Size for arrays
+	int subreg; // For pointers, the register with the actual pointer
 
 	str_t name; // For globals and functions
 
@@ -157,6 +159,11 @@ static vreg_t *vreg_in_slot(int slot) {
 	return NULL;
 }
 
+static bool vreg_is_real(vreg_t *vreg) {
+	return vreg->isreal
+		|| vreg->type == VREG_POINTER && vregs.v[vreg->subreg].isreal;
+}
+
 // Move the value in from to to (to may overlap with another virtual register)
 static void vreg_move(vreg_t *from, vreg_t *to, FILE *f) {
 	int reg;
@@ -259,7 +266,9 @@ static char *vreg_name(vreg_t *vreg) {
 
 	switch(vreg->type) {
 	case VREG_ARRAY:
-		error("array vreg passed to reg_name()");
+		str_ensure_cap(&vreg->refstr,ceil(log10(INT_MAX)) + 6);
+		sprintf(vreg->refstr.v,
+			"%i(%%rbp",-8*frame.v[vreg->slot].index);
 		break;
 
 	case VREG_FUNCTION:
@@ -270,6 +279,11 @@ static char *vreg_name(vreg_t *vreg) {
 	case VREG_GLOBAL:
 		str_ensure_cap(&vreg->refstr,vreg->name.n + 6);
 		sprintf(vreg->refstr.v,"%s(%%rip)",vreg->name.v);
+		break;
+
+	case VREG_POINTER:
+		str_ensure_cap(&vreg->refstr,5);
+		sprintf(vreg->refstr.v,"(%s",reg_name(vreg->subreg));
 		break;
 
 	case VREG_REGISTER:
@@ -285,7 +299,9 @@ static char *vreg_name(vreg_t *vreg) {
 		break;
 
 	case VREG_SUBSCRIPT:
-		error("subscript vreg passed to reg_name()");
+		str_ensure_cap(&vreg->refstr,ceil(log10(INT_MAX)) + 7);
+		sprintf(vreg->refstr.v,"%i(%%rbp)",
+			-8*(frame.v[vreg->slot].index - vreg->offset));
 		break;
 	}
 
@@ -423,6 +439,7 @@ int reg_assign_array(size_t size) {
 	vreg->persistent = true;
 	vreg->slot = frame.n - 1;
 	vreg->size = size;
+	vreg->offset = 0;
 
 	return vreg - vregs.v;
 }
@@ -468,6 +485,18 @@ int reg_assign_local(int index) {
 	return vreg - vregs.v;
 }
 
+// Create a pseudo-register wrapping a virtual register containing a pointer
+int reg_assign_pointer(int subreg) {
+	vreg_t *vreg = vreg_alloc();
+
+	vreg->type = VREG_POINTER;
+	vreg->isreal = false;
+	vreg->persistent = false;
+	vreg->subreg = subreg;
+
+	return vreg - vregs.v;
+}
+
 // Create a virtual register initially referring to the actual register real
 int reg_assign_real(reg_real_t real) {
 	vreg_t *vreg = vreg_alloc();
@@ -483,7 +512,7 @@ int reg_assign_real(reg_real_t real) {
 }
 
 // Create a pseudo-register referring to a word within an array
-int reg_assign_subscript(int base, size_t offset) {
+int reg_assign_subscript(int base, int offset) {
 	vreg_t *vreg = vreg_alloc();
 	vreg_t *vbase = vregs.v + base;
 
@@ -493,7 +522,7 @@ int reg_assign_subscript(int base, size_t offset) {
 	vreg->isreal = false;
 	vreg->persistent = false;
 	vreg->slot = vbase->slot;
-	vreg->offset = offset;
+	vreg->offset = vbase->offset + offset;
 
 	return vreg - vregs.v;
 }
@@ -508,6 +537,9 @@ void reg_free(int reg) {
 	// Arrays and locals exist through entire functions
 	if(vreg->persistent)
 		return;
+
+	if(vreg->type == VREG_POINTER)
+		reg_free(vreg->subreg);
 
 	if(vreg->type == VREG_REGISTER) {
 		if(vreg->isreal)
@@ -567,8 +599,7 @@ void reg_record_lvalues() {
 void reg_restore_lvalues(FILE *f) {
 	vector_t(vreg_t) saved;
 
-	saved = vreglvalues.v[vreglvalues.n - 1];
-	vreglvalues.n--;
+	saved = vreglvalues.v[--vreglvalues.n];
 
 	for(size_t si = 0; si < saved.n; si++) {
 		for(size_t vi = 0; vi < vregs.n; vi++) {
@@ -596,7 +627,7 @@ void reg_restore_lvalues(FILE *f) {
 
 // Returns whether the virtual register currently resides in an actual register
 bool reg_is_real(int reg) {
-	return vregs.v[reg].isreal;
+	return vreg_is_real(vregs.v + reg);
 }
 
 // Returns whether the virtual register represents a persistent (named) value
@@ -616,13 +647,22 @@ void reg_set_lvalue(int reg, int *lvalue) {
 
 // Moves the virtual register to an actual register, if it is not there already
 void reg_make_real(int reg, FILE *f) {
+	reg_real_t real;
+
 	vreg_t *vreg = vregs.v + reg;
 
-	if(vreg->isreal)
+	if(vreg->type == VREG_POINTER)
+		vreg = vregs.v + vreg->subreg;
+
+	if(vreg_is_real(vreg) || vreg->type != VREG_REGISTER)
 		return;
 
-	vreg->real = vreg_spill_lru(f);
+	real = vreg_spill_lru(f);
+
+	fprintf(f,"\tmov %s, %s\n",vreg_name(vreg),reg_name_real(real));
+
 	vreg->isreal = true;
+	vreg->real = real;
 }
 
 // Convenience function to ensure at least one of reg1 and reg2 is real

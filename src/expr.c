@@ -121,7 +121,7 @@ expr_t *expr_eval_constant(expr_t *this) {
 	expr_t *head, **tail;
 	expr_t *left, *right;
 
-	if(!this)
+	if(!this || !this->type->constant)
 		return NULL;
 
 	left = expr_eval_constant(this->left);
@@ -231,24 +231,24 @@ expr_t *expr_eval_constant(expr_t *this) {
 	return head;
 }
 
-int expr_codegen(expr_t *this, FILE *f, bool wantaddr, int outindex) {
+int expr_codegen(expr_t *this, FILE *f, bool wantlvalue, int outreg) {
 	expr_t *expr;
 	size_t expri, size;
 	vector_t(int) regs;
 	reg_real_t *realregs;
-	int left, *lvalue, reg, right;
+	int left, *lvalue, reg, right, subreg;
 
 	if(!this)
 		return -1;
 
 	if(this->op != EXPR_ARRAY)
 		left = expr_codegen(this->left,f,this->op == EXPR_ASSIGN
-			|| this->op == EXPR_CALL || this->op == EXPR_DECREMENT
+			|| this->op == EXPR_DECREMENT
 			|| this->op == EXPR_INCREMENT
 			|| this->op == EXPR_SUBSCRIPT,0);
 
 	if(this->op != EXPR_CALL)
-		right = expr_codegen(this->right,f,false,0);
+		right = expr_codegen(this->right,f,false,-1);
 
 	switch(this->op) {
 	case EXPR_ADD:
@@ -299,7 +299,7 @@ int expr_codegen(expr_t *this, FILE *f, bool wantaddr, int outindex) {
 		for(expr_t *expr = this->right;
 			expr && regs.n < 6; expr = expr->next) {
 			reg_hint(realregs[regs.n]);
-			reg = expr_codegen(expr,f,false,0);
+			reg = expr_codegen(expr,f,false,-1);
 			reg_make_temporary(&reg,f);
 
 			vector_append(regs,reg);
@@ -401,13 +401,13 @@ int expr_codegen(expr_t *this, FILE *f, bool wantaddr, int outindex) {
 
 	case EXPR_SUBSCRIPT:
 		reg_make_real(left,f);
-		reg_make_real(right,f);
+		reg_make_temporary(&right,f);
 		if(size = type_size(this->left->type->subtype), size > 1)
 			fprintf(f,"\timul $%zu, %s\n",size,reg_name(right));
-		fprintf(f,"\t%s (%s,%s,8), %s\n",wantaddr ? "lea" : "mov",
-			reg_name(left),reg_name(right),reg_name(left));
-		reg_free(right);
-		return left;
+		fprintf(f,"\t%s %s,%s,8), %s\n",wantlvalue ? "lea" : "mov",
+			reg_name(left),reg_name(right),reg_name(right));
+		reg_free(left);
+		return wantlvalue ? reg_assign_pointer(right) : right;
 
 	case EXPR_SUBTRACT:
 		reg_make_temporary(&left,f);
@@ -427,13 +427,17 @@ int expr_codegen(expr_t *this, FILE *f, bool wantaddr, int outindex) {
 		size = type_size(this->left->type);
 		for(expr = this->left, expri = 0;
 			expr; expr = expr->next, expri++) {
-			reg = expr_codegen(expr,f,false,outindex - expri*size);
+			subreg = reg_assign_subscript(outreg,expri*size);
+			reg = expr_codegen(expr,f,false,subreg);
+
 			if(reg >= 0) {
 				reg_make_real(reg,f);
-				fprintf(f,"\tmov %s, -%zu(%%rbp)\n",
-					reg_name(reg),8*(outindex - expri));
+				fprintf(f,"\tmov %s, %s\n",
+					reg_name(reg),reg_name(subreg));
 				reg_free(reg);
 			}
+
+			reg_free(subreg);
 		}
 		return -1;
 
@@ -455,12 +459,14 @@ int expr_codegen(expr_t *this, FILE *f, bool wantaddr, int outindex) {
 	case EXPR_REFERENCE:
 		switch(this->symbol->level) {
 		case SYMBOL_ARG:
+			if(type_is(this->type,TYPE_ARRAY))
+				return reg_assign_pointer(this->symbol->reg);
 			return this->symbol->reg;
 
 		case SYMBOL_GLOBAL:
 			if(type_is(this->type,TYPE_FUNCTION))
 				return reg_assign_function(this->s);
-			else return reg_assign_global(this->s);
+			return reg_assign_global(this->s);
 
 		case SYMBOL_LOCAL:
 			return this->symbol->reg;
@@ -513,7 +519,7 @@ void expr_codegen_push_args(expr_t *arg, FILE *f) {
 
 	expr_codegen_push_args(arg->next,f);
 
-	reg = expr_codegen(arg,f,false,0);
+	reg = expr_codegen(arg,f,false,-1);
 	fprintf(f,"\tpushq %s\n",reg_name(reg));
 	reg_free(reg);
 }
@@ -866,8 +872,8 @@ void expr_typecheck(expr_t *this) {
 			}
 
 			fail = !type_is(this->left->type,TYPE_INTEGER);
-			this->type = type_create(TYPE_INTEGER,0,NULL,NULL,
-				this->left->type->constant);
+			this->type
+				= type_create(TYPE_INTEGER,0,NULL,NULL,false);
 			this->type->lvalue = this->left->type->lvalue;
 			break;
 

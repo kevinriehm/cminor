@@ -42,7 +42,7 @@ void stmt_codegen(stmt_t *this, FILE *f) {
 			break;
 
 		case STMT_EXPR:
-			reg = expr_codegen(this->expr,f,false,0);
+			reg = expr_codegen(this->expr,f,false,-1);
 			reg_free(reg);
 			break;
 
@@ -50,7 +50,7 @@ void stmt_codegen(stmt_t *this, FILE *f) {
 			label1 = nlabels++;
 			label2 = nlabels++;
 
-			reg = expr_codegen(this->init_expr,f,false,0);
+			reg = expr_codegen(this->init_expr,f,false,-1);
 			reg_free(reg);
 
 			fprintf(f,".Lstmt_%zu:\n",label1);
@@ -59,15 +59,16 @@ void stmt_codegen(stmt_t *this, FILE *f) {
 
 			// Empty test expression means infinite loop
 			if(this->expr) {
-				reg = expr_codegen(this->expr,f,false,0);
-				fprintf(f,"\tcmp $0, %s\n",reg_name(reg));
-				fprintf(f,"\tje .Lstmt_%zu\n",label2);
+				reg = expr_codegen(this->expr,f,false,-1);
+				fprintf(f,"\ttest %s, %s\n",
+					reg_name_8l(reg),reg_name_8l(reg));
+				fprintf(f,"\tjz .Lstmt_%zu\n",label2);
 				reg_free(reg);
 			}
 
 			stmt_codegen(this->body,f);
 
-			reg = expr_codegen(this->next_expr,f,false,0);
+			reg = expr_codegen(this->next_expr,f,false,-1);
 			reg_free(reg);
 
 			reg_restore_lvalues(f);
@@ -80,9 +81,10 @@ void stmt_codegen(stmt_t *this, FILE *f) {
 			label1 = nlabels++;
 			label2 = nlabels++;
 
-			reg = expr_codegen(this->expr,f,false,0);
-			fprintf(f,"\tcmp $0, %s\n",reg_name(reg));
-			fprintf(f,"\tje .Lstmt_%zu\n",label1);
+			reg = expr_codegen(this->expr,f,false,-1);
+			fprintf(f,"\ttest %s, %s\n",
+				reg_name_8l(reg),reg_name_8l(reg));
+			fprintf(f,"\tjz .Lstmt_%zu\n",label1);
 			reg_free(reg);
 
 			reg_record_lvalues();
@@ -107,7 +109,7 @@ void stmt_codegen(stmt_t *this, FILE *f) {
 			for(expr_t *expr = this->expr;
 				expr; expr = expr->next) {
 				reg_hint(REG_RDI);
-				reg = expr_codegen(expr,f,false,0);
+				reg = expr_codegen(expr,f,false,-1);
 				reg_make_temporary(&reg,f);
 
 				reg_map_v(9,(int []) {
@@ -134,7 +136,7 @@ void stmt_codegen(stmt_t *this, FILE *f) {
 
 		case STMT_RETURN:
 			reg_hint(REG_RAX);
-			reg = expr_codegen(this->expr,f,false,0);
+			reg = expr_codegen(this->expr,f,false,-1);
 			reg_map_v(1,
 				(int []) {reg},(reg_real_t []) {REG_RAX},f);
 			reg_free(reg);

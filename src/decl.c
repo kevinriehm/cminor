@@ -24,7 +24,7 @@ decl_t *decl_create(str_t name, type_t *type, expr_t *value, stmt_t *body) {
 
 void decl_codegen(decl_t *this, FILE *f) {
 	arg_t *arg;
-	int argi, *regs;
+	int argi, reg, *regs;
 	reg_real_t *realregs;
 
 	while(this) {
@@ -91,10 +91,16 @@ void decl_codegen(decl_t *this, FILE *f) {
 
 			fputc('\n',f);
 		} else if(this->value) {
-			this->symbol->reg = expr_codegen(this->value,f,false,
-				this->symbol->func->type->nargs
-					+ this->symbol->index
-					+ type_size(this->value->type));
+			if(type_is(this->value->type,TYPE_ARRAY))
+				this->symbol->reg = reg_assign_array(
+					type_size(this->type));
+			else this->symbol->reg = -1;
+
+			reg = expr_codegen(
+				this->value,f,false,this->symbol->reg);
+			if(this->symbol->reg < 0)
+				this->symbol->reg = reg;
+
 			reg_make_persistent(this->symbol->reg);
 			reg_set_lvalue(
 				this->symbol->reg,&this->symbol->reg);

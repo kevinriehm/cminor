@@ -38,8 +38,9 @@ int reg_assign_array(size_t);
 int reg_assign_function(str_t);
 int reg_assign_global(str_t);
 int reg_assign_local(int);
+int reg_assign_pointer(int);
 int reg_assign_real(reg_real_t);
-int reg_assign_subscript(int, size_t);
+int reg_assign_subscript(int, int);
 
 void reg_free(int);
 void reg_free_persistent(int);
