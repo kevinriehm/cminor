@@ -1,0 +1,42 @@
+// More than six arguments
+
+bar: function integer (i0: integer, i1: integer, i2: integer, i3: integer, i4: integer, i5: integer, i6: integer) = {
+	return i0 + i1 + i2 + i3 + i4 + i5 + i6;
+}
+
+foo: function integer (i0: integer, b1: boolean, s2: string, a3: array [] integer, i4: integer, i5: integer, i6: integer, c7: char, a8: array [] string, i9: integer) = {
+	print "i0 = ", i0, "\n";
+	print "b1 = ", b1, "\n";
+	print "s2 = \"", s2, "\"\n";
+	print "a3[0] = ", a3[0], "\n";
+	print "a3[1] = ", a3[1], "\n";
+	print "a3[2] = ", a3[2], "\n";
+	print "a3[3] = ", a3[3], "\n";
+	print "a3[4] = ", a3[4], "\n";
+	print "i4 = ", i4, "\n";
+	print "i5 = ", i5, "\n";
+	print "i6 = ", i6, "\n";
+	print "c7 = '", c7, "'\n";
+	print "a8[0] = ", a8[0], "\n";
+	print "a8[1] = ", a8[1], "\n";
+	print "i9 = ", i9, "\n";
+
+	return bar(i0, i4, i5, i6, i9, 11, 22);
+}
+
+main: function integer () = {
+	x: array [5] integer;
+	x[0] = 0;
+	x[1] = 1;
+	x[2] = 2;
+	x[3] = 3;
+	x[4] = 4;
+
+	s: array [2] string = {"111", "222"};
+
+	f: integer = foo(0, true, "2", x, 4, 5, 6, '7', s, 9);
+	print "foo() = ", f, "\n";
+
+	return 0;
+}
+
