@@ -21,7 +21,6 @@ typedef struct type {
 
 	int64_t size; // Size of array types
 	size_t nlocals; // Locals in a function
-	size_t nargs; // Arguments in a function
 	struct arg *args; // Function arguments
 	bool lvalue; // Can it be modified?
 	bool constant; // Does it have a known value at compile time?

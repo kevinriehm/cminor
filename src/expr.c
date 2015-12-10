@@ -233,9 +233,9 @@ expr_t *expr_eval_constant(expr_t *this) {
 
 int expr_codegen(expr_t *this, FILE *f, bool wantlvalue, int outreg) {
 	expr_t *expr;
-	size_t expri, size;
 	vector_t(int) regs;
 	reg_real_t *realregs;
+	size_t expri, nargs, size;
 	int left, *lvalue, reg, right, subreg;
 
 	if(!this)
@@ -272,8 +272,9 @@ int expr_codegen(expr_t *this, FILE *f, bool wantlvalue, int outreg) {
 			reg_set_lvalue(right,lvalue);
 		} else {
 			reg_make_one_real(left,right,f);
-			fprintf(f,"\tmov %s, %s\n",
-				reg_name(right),reg_name(left));
+			fprintf(f,"\tmov %s, %s%s\n",
+				reg_name(right),reg_name(left),
+				reg_is_pointer(left) ? ")" : "");
 			reg_free(left);
 		}
 		return right;
@@ -282,12 +283,13 @@ int expr_codegen(expr_t *this, FILE *f, bool wantlvalue, int outreg) {
 		vector_init(regs);
 
 		// Push arguments past the sixth onto the stack
-		if(this->left->type->nargs > 6) {
-			if(this->left->type->nargs&1)
-				fputs("\tsub $8, %%rsp\n",f);
+		nargs = arg_count(this->left->type->args);
+		if(nargs > 6) {
+			if(nargs&1)
+				fputs("\tsub $8, %rsp\n",f);
 
-			expr_codegen_push_args(
-				this->right->next->next->next->next->next,f);
+			expr_codegen_push_args(this->right->next->next->next
+				->next->next->next,f);
 		}
 
 		// Generate the first six or fewer arguments
@@ -461,14 +463,24 @@ int expr_codegen(expr_t *this, FILE *f, bool wantlvalue, int outreg) {
 		case SYMBOL_ARG:
 			if(type_is(this->type,TYPE_ARRAY))
 				return reg_assign_pointer(this->symbol->reg);
+
 			return this->symbol->reg;
 
 		case SYMBOL_GLOBAL:
 			if(type_is(this->type,TYPE_FUNCTION))
 				return reg_assign_function(this->s);
+
 			return reg_assign_global(this->s);
 
 		case SYMBOL_LOCAL:
+			if(type_is(this->type,TYPE_ARRAY) && !wantlvalue) {
+				reg = reg_alloc(f);
+				fprintf(f,"\tlea %s), %s\n",
+					reg_name(this->symbol->reg),
+					reg_name(reg));
+				return reg;
+			}
+
 			return this->symbol->reg;
 		}
 
@@ -520,7 +532,7 @@ void expr_codegen_push_args(expr_t *arg, FILE *f) {
 	expr_codegen_push_args(arg->next,f);
 
 	reg = expr_codegen(arg,f,false,-1);
-	fprintf(f,"\tpushq %s\n",reg_name(reg));
+	fprintf(f,"\tpush %s\n",reg_name(reg));
 	reg_free(reg);
 }
 

@@ -12,7 +12,6 @@ type_t *type_create(type_type_t type, int64_t size, arg_t *args,
 		.type = type,
 		.subtype = subtype,
 		.size = size,
-		.nargs = arg_count(args),
 		.args = args,
 		.constant = constant
 	});

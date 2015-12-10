@@ -53,6 +53,7 @@ void reg_restore_lvalues(FILE *f);
 
 bool reg_is_real(int);
 bool reg_is_persistent(int);
+bool reg_is_pointer(int);
 
 int *reg_get_lvalue(int);
 void reg_set_lvalue(int, int *);

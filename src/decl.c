@@ -50,7 +50,7 @@ void decl_codegen(decl_t *this, FILE *f) {
 				arg; arg = arg->next, argi++) {
 				arg->symbol->reg = argi < 6
 					? reg_assign_real(realregs[argi])
-					: reg_assign_local(5 - argi);
+					: reg_assign_local(4 - argi);
 				reg_make_persistent(arg->symbol->reg);
 				reg_set_lvalue(
 					arg->symbol->reg,&arg->symbol->reg);
@@ -91,7 +91,7 @@ void decl_codegen(decl_t *this, FILE *f) {
 
 			fputc('\n',f);
 		} else if(this->value) {
-			if(type_is(this->value->type,TYPE_ARRAY))
+			if(type_is(this->type,TYPE_ARRAY))
 				this->symbol->reg = reg_assign_array(
 					type_size(this->type));
 			else this->symbol->reg = -1;
@@ -105,7 +105,11 @@ void decl_codegen(decl_t *this, FILE *f) {
 			reg_set_lvalue(
 				this->symbol->reg,&this->symbol->reg);
 		} else if(this->symbol->level == SYMBOL_LOCAL) {
-			this->symbol->reg = reg_alloc(f);
+			if(type_is(this->type,TYPE_ARRAY))
+				this->symbol->reg = reg_assign_array(
+					type_size(this->type));
+			else this->symbol->reg = reg_alloc(f);
+
 			reg_make_persistent(this->symbol->reg);
 			reg_set_lvalue(
 				this->symbol->reg,&this->symbol->reg);

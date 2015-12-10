@@ -480,7 +480,7 @@ int reg_assign_local(int index) {
 	vreg->type = VREG_REGISTER;
 	vreg->isreal = false;
 	vreg->persistent = true;
-	vreg->slot = frame.n;
+	vreg->slot = frame.n - 1;
 
 	return vreg - vregs.v;
 }
@@ -628,6 +628,11 @@ void reg_restore_lvalues(FILE *f) {
 // Returns whether the virtual register currently resides in an actual register
 bool reg_is_real(int reg) {
 	return vreg_is_real(vregs.v + reg);
+}
+
+// Returns whether the virtual register holds a pointer value
+bool reg_is_pointer(int reg) {
+	return vregs.v[reg].type == VREG_POINTER;
 }
 
 // Returns whether the virtual register represents a persistent (named) value
