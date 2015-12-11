@@ -264,6 +264,8 @@ int expr_codegen(expr_t *this, FILE *f, bool wantlvalue, int outreg) {
 	case EXPR_AND:
 		label = nlabels++;
 
+		reg_record_lvalues();
+
 		fprintf(f,"\tcmp $0, %s\n",reg_name_8l(left));
 		fprintf(f,"\tjz .Lexpr_%i\n",label);
 
@@ -271,6 +273,7 @@ int expr_codegen(expr_t *this, FILE *f, bool wantlvalue, int outreg) {
 		reg_make_one_temporary(&left,&right,f,NULL);
 		fprintf(f,"\tand %s, %s\n",reg_name(right),reg_name(left));
 
+		reg_restore_lvalues(f);
 		fprintf(f,"\t.Lexpr_%i:\n",label);
 
 		reg_free(right);
@@ -404,6 +407,8 @@ int expr_codegen(expr_t *this, FILE *f, bool wantlvalue, int outreg) {
 	case EXPR_OR:
 		label = nlabels++;
 
+		reg_record_lvalues();
+
 		fprintf(f,"\tcmp $0, %s\n",reg_name_8l(left));
 		fprintf(f,"\tjne .Lexpr_%i\n",label);
 
@@ -411,6 +416,7 @@ int expr_codegen(expr_t *this, FILE *f, bool wantlvalue, int outreg) {
 		reg_make_one_temporary(&left,&right,f,NULL);
 		fprintf(f,"\tor %s, %s\n",reg_name(right),reg_name(left));
 
+		reg_restore_lvalues(f);
 		fprintf(f,"\t.Lexpr_%i:\n",label);
 
 		reg_free(right);
