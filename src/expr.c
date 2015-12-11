@@ -542,11 +542,13 @@ int expr_codegen_compare(expr_t *this, FILE *f, int left, int right) {
 		reg_vacate_v(4,(reg_real_t []) {
 			REG_RAX, REG_RCX, REG_RSI, REG_RDI},f);
 
+		// String length
 		fprintf(f,"\txor %%al, %%al\n");
 		fprintf(f,"\tmov $-1, %%rcx\n");
 		fprintf(f,"\tmov %s, %%rdi\n",reg_name(left));
 		fprintf(f,"\trepne scasb\n");
 
+		// Compare strings
 		fprintf(f,"\tmov %%rdi, %%rcx\n");
 		fprintf(f,"\tsub %s, %%rcx\n",reg_name(left));
 		fprintf(f,"\tsub %%rcx, %%rdi\n");
@@ -563,6 +565,7 @@ int expr_codegen_compare(expr_t *this, FILE *f, int left, int right) {
 	return left;
 }
 
+// Push arguments onto the stack from right to left
 void expr_codegen_push_args(expr_t *arg, FILE *f) {
 	int reg;
 
