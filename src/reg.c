@@ -278,7 +278,7 @@ static char *vreg_name(vreg_t *vreg) {
 
 	case VREG_REGISTER:
 		if(vreg->isreal) {
-			str_ensure_cap(&vreg->refstr,4);
+			str_ensure_cap(&vreg->refstr,5);
 			sprintf(vreg->refstr.v,"%s",reg_name_real(vreg->real));
 		} else {
 			str_ensure_cap(
