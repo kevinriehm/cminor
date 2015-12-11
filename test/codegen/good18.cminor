@@ -1,0 +1,66 @@
+// Basic quine (based on the Wikipedia article)
+
+putchar: function void (c: integer);
+
+a: array [33] string = {
+	"// Basic quine (based on the Wikipedia article)",
+	"",
+	"putchar: function void (c: integer);",
+	"",
+	"a: array [33] string = {",
+	"};",
+	"",
+	"main: function integer () = {",
+	"	i: integer;",
+	"",
+	"	for(i = 0; i < 5; i++) {",
+	"		print a[i];",
+	"		putchar(10);",
+	"	}",
+	"",
+	"	for(i = 0; i < 33; i++) {",
+	"		putchar(9);",
+	"		putchar(34);",
+	"		print a[i];",
+	"		putchar(34);",
+	"		if(i < 32)",
+	"			putchar(44);",
+	"		putchar(10);",
+	"	}",
+	"",
+	"	for(i = 5; i < 33; i++) {",
+	"		print a[i];",
+	"		putchar(10);",
+	"	}",
+	"",
+	"	return 0;",
+	"}",
+	""
+};
+
+main: function integer () = {
+	i: integer;
+
+	for(i = 0; i < 5; i++) {
+		print a[i];
+		putchar(10);
+	}
+
+	for(i = 0; i < 33; i++) {
+		putchar(9);
+		putchar(34);
+		print a[i];
+		putchar(34);
+		if(i < 32)
+			putchar(44);
+		putchar(10);
+	}
+
+	for(i = 5; i < 33; i++) {
+		print a[i];
+		putchar(10);
+	}
+
+	return 0;
+}
+
