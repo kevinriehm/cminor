@@ -1,0 +1,47 @@
+// Virtual psychologist
+
+getchar: function integer ();
+rand: function integer ();
+srand: function void (seed: integer);
+time: function integer (ptr: integer);
+
+main: function integer () = {
+	responses: array [10] string = {
+		"How does that make you feel?",
+		"Interesting. Care to tell me more?",
+		"Tell me more about your family.",
+		"Is that important to you?",
+		"I don't think you're telling me the whole story.",
+		"I believe we are starting to make progress here.",
+		"Your attitude is troubling.",
+		"Why do you act that way?",
+		"I can tell you are an intelligent person.",
+		"We have a lot more work to do."
+	};
+
+	srand(time(0));
+
+	print "Hello, I am your virtual psychologist.\n",
+		"Please, make yourself comfortable, and tell ",
+		"me what about brings you here.\n";
+
+	c: integer = 0;
+	// The '< 256' is needed because getchar might only return
+	// a 32-bit version of -1, which appears as 2^32 - 1 in
+	// out 64-bit integers.
+	for(; c >= 0 && c < 256;) {
+		print "> ";
+
+		for(c = getchar();
+			c >= 0 && c < 256 && c != 10 && c != 13;
+			c = getchar()) { }
+
+		if(c < 0 || c >= 256)
+			print "\nI'm glad I could help. ",
+				"Feel free to stop by anytime.\n";
+		else print responses[rand()%10], "\n";
+	}
+
+	return 0;
+}
+

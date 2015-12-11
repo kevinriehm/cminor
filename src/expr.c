@@ -267,7 +267,7 @@ int expr_codegen(expr_t *this, FILE *f, bool wantlvalue, int outreg) {
 		reg_record_lvalues();
 
 		fprintf(f,"\tcmp $0, %s\n",reg_name_8l(left));
-		fprintf(f,"\tjz .Lexpr_%i\n",label);
+		fprintf(f,"\tje .Lexpr_%i\n",label);
 
 		right = expr_codegen(this->right,f,false,-1);
 		reg_make_one_temporary(&left,&right,f,NULL);
