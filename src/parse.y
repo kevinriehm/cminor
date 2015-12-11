@@ -149,7 +149,7 @@ func_type: TOKEN_FUNCTION atomic_type args {
          ;
 
 arg_type: atomic_type { $$ = $1; }
-        | TOKEN_ARRAY TOKEN_LBRACKET TOKEN_RBRACKET arg_type {
+        | TOKEN_ARRAY TOKEN_LBRACKET TOKEN_RBRACKET var_type {
 	$$ = type_create(TYPE_ARRAY,0,NULL,$4,false);
         }
         ;
