@@ -1,0 +1,25 @@
+// Lot of little loops
+
+main: function integer () = {
+	i: integer;
+	for(i = 0; i < 5; i++) {
+		j: integer;
+		for(j = 5; j < 2; j++)
+			print "j = ", j, "\n";
+		for(; j + 9 > i; j--) {
+			print "j = ", j, "\n";
+			for(; i < j; i++) {
+				print "i = ", i, "\n";
+				k: integer;
+				for(k = 0; k == 0; k = 1) {
+					print "k = ", k, "\n";
+				}
+			}
+			i = i*j;
+			print "i = ", i, "\n";
+		}
+	}
+
+	return 0;
+}
+
