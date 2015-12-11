@@ -1,0 +1,22 @@
+// Prime number sieve
+
+main: function integer (argc: integer, argv: array [] string) = {
+	primes: array [100] integer;
+
+	i: integer = 0;
+	x: integer = 2;
+	for(; i < 100; x++) {
+		j: integer;
+		stop: boolean = false;
+		for(j = 0; j < i && !stop; j++)
+			if(x%primes[j] == 0)
+				stop = true;
+
+		if(j == i) {
+			primes[i] = x;
+			print "Prime ", i + 1, ": ", primes[i], "\n";
+			i++;
+		}
+	}
+}
+
