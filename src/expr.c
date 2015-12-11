@@ -435,6 +435,7 @@ int expr_codegen(expr_t *this, FILE *f, bool wantlvalue, int outreg) {
 	case EXPR_SUBSCRIPT:
 		reg_make_real(left,f);
 		reg_make_temporary(&right,f);
+		reg_make_real(right,f);
 		if(size = type_size(this->left->type->subtype), size > 1)
 			fprintf(f,"\timul $%zu, %s\n",size,reg_name(right));
 		fprintf(f,"\t%s %s,%s,8), %s\n",wantlvalue ? "lea" : "mov",
