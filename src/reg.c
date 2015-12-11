@@ -452,7 +452,7 @@ int reg_assign_global(str_t name) {
 
 	vreg->type = VREG_GLOBAL;
 	vreg->isreal = false;
-	vreg->persistent = false;
+	vreg->persistent = true;
 	vreg->name = name;
 
 	return vreg - vregs.v;
