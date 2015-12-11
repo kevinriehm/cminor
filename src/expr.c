@@ -232,6 +232,9 @@ expr_t *expr_eval_constant(expr_t *this) {
 }
 
 int expr_codegen(expr_t *this, FILE *f, bool wantlvalue, int outreg) {
+	static int nlabels = 0;
+
+	int label;
 	expr_t *expr;
 	vector_t(int) regs;
 	reg_real_t *realregs;
@@ -247,7 +250,8 @@ int expr_codegen(expr_t *this, FILE *f, bool wantlvalue, int outreg) {
 			|| this->op == EXPR_INCREMENT
 			|| this->op == EXPR_SUBSCRIPT,0);
 
-	if(this->op != EXPR_CALL)
+	if(this->op != EXPR_AND
+		&& this->op != EXPR_CALL && this->op != EXPR_OR)
 		right = expr_codegen(this->right,f,false,-1);
 
 	switch(this->op) {
@@ -258,8 +262,17 @@ int expr_codegen(expr_t *this, FILE *f, bool wantlvalue, int outreg) {
 		return left;
 
 	case EXPR_AND:
+		label = nlabels++;
+
+		fprintf(f,"\tcmp $0, %s\n",reg_name_8l(left));
+		fprintf(f,"\tjz .Lexpr_%i\n",label);
+
+		right = expr_codegen(this->right,f,false,-1);
 		reg_make_one_temporary(&left,&right,f,NULL);
 		fprintf(f,"\tand %s, %s\n",reg_name(right),reg_name(left));
+
+		fprintf(f,"\t.Lexpr_%i:\n",label);
+
 		reg_free(right);
 		return left;
 
@@ -387,12 +400,22 @@ int expr_codegen(expr_t *this, FILE *f, bool wantlvalue, int outreg) {
 		return left;
 
 	case EXPR_OR:
+		label = nlabels++;
+
+		fprintf(f,"\tcmp $0, %s\n",reg_name_8l(left));
+		fprintf(f,"\tjne .Lexpr_%i\n",label);
+
+		right = expr_codegen(this->right,f,false,-1);
 		reg_make_one_temporary(&left,&right,f,NULL);
 		fprintf(f,"\tor %s, %s\n",reg_name(right),reg_name(left));
+
+		fprintf(f,"\t.Lexpr_%i:\n",label);
+
 		reg_free(right);
 		return left;
 
 	case EXPR_REMAINDER:
+		reg_make_temporary(&left,f);
 		reg_vacate_v(2,(reg_real_t []) {REG_RAX, REG_RDX},f);
 		fprintf(f,"\tmov %s, %%rax\n",reg_name(left));
 		fprintf(f,"\tcqo\n");
@@ -513,8 +536,23 @@ int expr_codegen_compare(expr_t *this, FILE *f, int left, int right) {
 
 	reg_make_one_temporary(&left,&right,f,&swapped);
 
-	fprintf(f,"\tcmp %s, %s\n",reg_name(swapped ? left : right),
+	if(type_is(this->left->type,TYPE_STRING)) {
+		reg_vacate_v(4,(reg_real_t []) {
+			REG_RAX, REG_RCX, REG_RSI, REG_RDI},f);
+
+		fprintf(f,"\txor %%al, %%al\n");
+		fprintf(f,"\tmov $-1, %%rcx\n");
+		fprintf(f,"\tmov %s, %%rdi\n",reg_name(left));
+		fprintf(f,"\trepne scasb\n");
+
+		fprintf(f,"\tmov %%rdi, %%rcx\n");
+		fprintf(f,"\tsub %s, %%rcx\n",reg_name(left));
+		fprintf(f,"\tsub %%rcx, %%rdi\n");
+		fprintf(f,"\tmov %s, %%rsi\n",reg_name(right));
+		fprintf(f,"\trepe cmpsb\n");
+	} else fprintf(f,"\tcmp %s, %s\n",reg_name(swapped ? left : right),
 		reg_name(swapped ? right : left));
+
 	fprintf(f,"\tset%s %s\n",suffixes[this->op],reg_name_8l(left));
 	fprintf(f,"\tmovzx %s, %s\n",reg_name_8l(left),reg_name(left));
 

@@ -1,0 +1,112 @@
+// Different expression types
+
+main: function integer () = {
+	print "=== Integers ===\n\n";
+
+	i0: integer = 20;
+	i1: integer = 7;
+
+	print "i0 = ", i0, "	(20)\n";
+	print "i1 = ", i1, "	(7)\n";
+	print "\n";
+
+	print "i0 + i1 == ", i0 + i1, "	(27)\n";
+	print "i0 / i1 == ", i0 / i1, "	(2)\n";
+	print "i0 ^ i1 == ", i0 ^ i1, "	(1280000000)\n";
+	print "i0 * i1 == ", i0 * i1, "	(140)\n";
+	print "   - i1 == ",    - i1, "	(-7)\n";
+	print "i0 % i1 == ", i0 % i1, "	(6)\n";
+	print "i0 - i1 == ", i0 - i1, "	(14)\n";
+	print "\n";
+
+	print "(i0 == i1) == ", i0 == i1, "	(false)\n";
+	print "(i0 >= i0) == ", i0 >= i0, "	(true)\n";
+	print "(i0 >= i1) == ", i0 >= i1, "	(true)\n";
+	print "(i0 >  i1) == ", i0 >  i1, "	(true)\n";
+	print "(i0 <= i0) == ", i0 <= i0, "	(true)\n";
+	print "(i0 <= i1) == ", i0 <= i1, "	(false)\n";
+	print "(i0 <  i1) == ", i0 <  i1, "	(false)\n";
+	print "(i0 != i1) == ", i0 != i1, "	(true)\n";
+	print "\n";
+
+	print "i0-- == ", i0--, "	(20)\n";
+	print "i0   == ", i0  , "	(19)\n";
+	print "i1++ == ", i1++, "	(7)\n";
+	print "i1   == ", i1  , "	(8)\n";
+	print "\n";
+
+	print "(true || i0-- < 0) == ", true || i0-- < 0, "	(true)\n";
+	print "i0 == ", i0, "	(19)\n";
+	print "(false && i1++ > 0) == ", false && i1++ > 0, "	(false)\n";
+	print "i1 == ", i1, "	(8)\n";
+	print "\n";
+
+	print "=== Booleans ===\n\n";
+
+	b0: boolean = true;
+	b1: boolean = false;
+	b2: boolean = true;
+
+	print "b0 = ", b0, "	(true)\n";
+	print "b1 = ", b1, "	(false)\n";
+	print "b2 = ", b2, "	(true)\n";
+	print "\n";
+
+	print "!b0 == ", !b0, "	(false)\n";
+	print "!b1 == ", !b1, "	(true)\n";
+	print "\n";
+
+	print "(b0 == b1) == ", b0 == b1, "	(false)\n";
+	print "(b0 == b2) == ", b0 == b2, "	(true)\n";
+	print "(b0 != b1) == ", b0 != b1, "	(true)\n";
+	print "(b0 != b2) == ", b0 != b2, "	(false)\n";
+	print "\n";
+
+	print "(b0 && b0) == ", b0 && b0, "	(true)\n";
+	print "(b0 && b1) == ", b0 && b1, "	(false)\n";
+	print "(b0 || b1) == ", b0 || b1, "	(true)\n";
+	print "(b1 || b1) == ", b1 || b1, "	(false)\n";
+	print "\n";
+
+	print "=== Characters ===\n\n";
+
+	c0: char = 'a';
+	c1: char = 'b';
+	c2: char = 'a';
+
+	print "c0 = '", c0, "' ('a')\n";
+	print "c1 = '", c1, "' ('b')\n";
+	print "c2 = '", c2, "' ('a')\n";
+	print "\n";
+
+	print "(c0 == c1) == ", c0 == c1, "	(false)\n";
+	print "(c0 == c2) == ", c0 == c2, "	(true)\n";
+	print "(c0 != c1) == ", c0 != c1, "	(true)\n";
+	print "(c0 != c2) == ", c0 != c2, "	(false)\n";
+	print "\n";
+
+	print "=== Strings ===\n\n";
+
+	s0: string = "xyzzy";
+	s1: string = "0123456789abcdef";
+	s2: string = "xyzzy";
+	s3: string = "xyzzy0";
+
+	print "s0 = \"", s0, "\"	(\"xyzzy\")\n";
+	print "s1 = \"", s1, "\"	(\"0123456789abcdef\")\n";
+	print "s2 = \"", s2, "\"	(\"xyzzy\")\n";
+	print "s3 = \"", s3, "\"	(\"xyzzy0\")\n";
+	print "\n";
+
+	print "(s0 == s1) == ", s0 == s1, "	(false)\n";
+	print "(s0 == s2) == ", s0 == s2, "	(true)\n";
+	print "(s1 == s1) == ", s1 == s1, "	(true)\n";
+	print "(s2 == s3) == ", s2 == s3, "	(false)\n";
+	print "(s0 != s1) == ", s0 != s1, "	(true)\n";
+	print "(s0 != s2) == ", s0 != s2, "	(false)\n";
+	print "(s1 != s1) == ", s1 != s1, "	(false)\n";
+	print "(s2 != s3) == ", s2 != s3, "	(true)\n";
+
+	return 0;
+}
+

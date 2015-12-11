@@ -139,16 +139,6 @@ static vreg_t vreg_copy(vreg_t vreg) {
 	return vreg;
 }
 
-// Return the virtual register currently residing in real (if there is one)
-static vreg_t *vreg_in_real(reg_real_t real) {
-	for(size_t i = 0; i < vregs.n; i++)
-		if(vregs.v[i].active
-			&& vregs.v[i].isreal && vregs.v[i].real == real)
-			return vregs.v + i;
-
-	return NULL;
-}
-
 // Return the virtual register currently residing in slot (if there is one)
 static vreg_t *vreg_in_slot(int slot) {
 	for(size_t i = 0; i < vregs.n; i++)

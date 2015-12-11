@@ -30,7 +30,8 @@ main: function integer () = {
 	x[1] = 1;
 	x[2] = 2;
 	x[3] = 3;
-	x[4] = 4;
+	x[4] = 3;
+	x[4]++;
 
 	s: array [2] string = {"111", "222"};
 
