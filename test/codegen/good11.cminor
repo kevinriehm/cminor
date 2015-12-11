@@ -16,7 +16,7 @@ main: function integer () = {
 	print "i0 * i1 == ", i0 * i1, "	(140)\n";
 	print "   - i1 == ",    - i1, "	(-7)\n";
 	print "i0 % i1 == ", i0 % i1, "	(6)\n";
-	print "i0 - i1 == ", i0 - i1, "	(14)\n";
+	print "i0 - i1 == ", i0 - i1, "	(13)\n";
 	print "\n";
 
 	print "(i0 == i1) == ", i0 == i1, "	(false)\n";
