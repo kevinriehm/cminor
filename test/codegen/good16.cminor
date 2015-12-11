@@ -1,0 +1,70 @@
+// Conway's game of life
+
+populate_world: function void (world: array [] array [10] boolean)= {
+	r: integer;
+	c: integer;
+	for(r = 0; r < 10; r++)
+		for(c = 0; c < 10; c++)
+			world[r][c] = false;
+
+	world[0][1] = true;
+	world[1][2] = true;
+	world[2][0] = true;
+	world[2][1] = true;
+	world[2][2] = true;
+}
+
+step_world: function void (in: array [] array [10] boolean, out: array [] array [10] boolean) ={
+	r: integer;
+	c: integer;
+	for(r = 0; r<10; r++){{{
+	for(c = 0; c < 10; c++){{{{
+n: integer = 0;
+if(in[(r + 1 + 10)%10][(c + 1 + 10)%10]) n++;
+if(in[(r + 1 + 10)%10][(c     + 10)%10]) n++;
+if(in[(r + 1 + 10)%10][(c - 1 + 10)%10]) n++;
+if(in[(r     + 10)%10][(c + 1 + 10)%10]) n++;
+if(in[(r     + 10)%10][(c - 1 + 10)%10]) n++;
+if(in[(r - 1 + 10)%10][(c + 1 + 10)%10]) n++;
+if(in[(r - 1 + 10)%10][(c     + 10)%10]) n++;
+if(in[(r - 1 + 10)%10][(c - 1 + 10)%10]) n++;
+if(in[r][c]) {out[r][c] = n == 2 || n == 3;
+	} else {out[r][c] = n == 3;
+}
+	}}}}}}}
+}
+
+print_world: function void (world: array [] array [10] boolean) = {
+	print " ==================== \n";
+	r: integer;
+	c: integer;
+	for(r = 0; r < 10; r++) {
+		print "|";
+		for(c = 0; c < 10; c++)
+			if(world[r][c]) print " X";
+			else print "  ";
+		print " |\n";
+	}
+	print " ==================== \n\n";
+}
+
+main: function integer () = {
+	niterations: integer = 5;
+
+	worlda: array [10] array [10] boolean;
+	worldb: array [10] array [10] boolean;
+
+	populate_world(worlda);
+	print_world(worlda);
+
+	i: integer;
+	for(i = niterations; i > 0; i--)
+		if((niterations - i)%2 == 0)
+{	step_world(worlda, worldb);
+print_world(worldb);}
+		else{
+	step_world(worldb, worlda);
+print_world(worlda);}
+			return 0;
+}
+
