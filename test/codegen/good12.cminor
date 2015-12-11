@@ -1,0 +1,102 @@
+// Generate a grayscale image of the Mandelbrot set in the PGM format
+
+fopen: function integer (filename: string, mode: string);
+fputc: function integer (c: integer, stream: integer);
+fputs: function integer (str: string, stream: integer);
+strtoll: function integer (str: string, endptr: integer, base: integer);
+
+precision: integer = 2^16;
+niterations: integer = 100;
+
+print_integer_f: function void (i: integer, f: integer) = {
+	if(i < 0) {
+		fputs("-",f);
+		i = -i;
+	}
+
+	nout: integer;
+	out: array [20] integer;
+
+	if(i == 0) {
+		nout = 1;
+		out[0] = 48;
+	} else for(nout = 0; i > 0; i = i/10)
+		out[nout++] = 48 + i%10;
+
+	for(; nout > 0; nout--)
+		fputc(out[nout - 1],f);
+}
+
+fixed: function integer (x: integer) = {
+	return x*precision;
+}
+
+unfixed: function integer (x: integer) = {
+	return x/precision;
+}
+
+mul_fixed: function integer (x: integer, y: integer) = {
+	return x*y/precision;
+}
+
+evaluate: function integer (u: integer, v: integer) = {
+	c_a: integer =  3*u - fixed(2); // Real part
+	c_b: integer = -2*v + fixed(1); // Imaginary part
+
+	z_a: integer = 0;
+	z_b: integer = 0;
+
+	i: integer;
+
+	for(i = 0; i < niterations && mul_fixed(z_a, z_a) + mul_fixed(z_b, z_b) < fixed(4); i++) {
+		new_z_a: integer = mul_fixed(z_a, z_a) - mul_fixed(z_b, z_b) + c_a;
+		new_z_b: integer = 2*mul_fixed(z_a, z_b) + c_b;
+		z_a = new_z_a;
+		z_b = new_z_b;
+	}
+
+	if(mul_fixed(z_a, z_a) + mul_fixed(z_b, z_b) < fixed(4))
+		return 0;
+	else return fixed(i)/niterations;
+}
+
+main: function integer (argc: integer, argv: array [] string) = {
+	if(argc != 4) {
+		print "usage: ", argv[0], " <width> <height> <output-file>\n";
+		return 1;
+	}
+
+	w: integer = strtoll(argv[1], 0, 10);
+	h: integer = strtoll(argv[2], 0, 10);
+
+	if(w < 1 || h < 1) {
+		print "error: invalid dimensions\n";
+		return 1;
+	}
+
+	f: integer = fopen(argv[3], "w");
+
+	if(f == 0) {
+		print "error: cannot open '", argv[3], "' for writing\n";
+		return 1;
+	}
+
+	fputs("P5\n",f);
+	print_integer_f(w,f);
+	fputs(" ",f);
+	print_integer_f(h,f);
+	fputs("\n255\n",f);
+
+	x: integer;
+	y: integer;
+
+	for(y = 0; y < h; y++) {
+		for(x = 0; x < w; x++) {
+			v: integer = evaluate(fixed(x)/w, fixed(y)/h);
+			fputc(unfixed(256*v),f);
+		}
+	}
+
+	return 0;
+}
+
