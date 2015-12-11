@@ -499,6 +499,13 @@ int expr_codegen(expr_t *this, FILE *f, bool wantlvalue, int outreg) {
 			return this->symbol->reg;
 
 		case SYMBOL_GLOBAL:
+			if(type_is(this->type,TYPE_ARRAY)) {
+				reg = reg_alloc(f);
+				fprintf(f,"\tlea %s(%%rip), %s\n",
+					this->s.v,reg_name(reg));
+				return reg_assign_pointer(reg);
+			}
+
 			if(type_is(this->type,TYPE_FUNCTION))
 				return reg_assign_function(this->s);
 
