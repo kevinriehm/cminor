@@ -1,0 +1,53 @@
+// Cool dot
+
+precision: integer = 2^16;
+
+div_fixed: function integer (x: integer, y: integer) = {
+	if(y == 0) y = 1;
+	return x*precision/y;
+}
+
+mul_fixed: function integer (x: integer, y: integer) = {
+	return x*y/precision;
+}
+
+abs_fixed: function integer (x: integer) = {
+	if( x < 0)
+		return -x;
+	return x;
+}
+
+sqrt_fixed: function integer (x: integer) = {
+	i: integer;
+	r: integer = x/2;
+	for(i = 0; i < 16; i++)
+		r = (r + div_fixed(x, r))/2;
+	return r;
+}
+
+sin_fixed: function integer (x: integer) = {
+	x = x%411763;
+	if(x > 205881) x = x - 205881;
+	return mul_fixed(x, 83443) + mul_fixed(mul_fixed(x, -26561), abs_fixed(x));
+}
+
+main: function integer () = {
+	enc: array [8] char = {' ', '.', '-', '+', 'o', 'O', 'Q', '@'};
+	x: integer;
+	y: integer;
+	dim: integer = 50;
+	for(y = 0; y < dim; y++){
+		for(x = 0; x < dim; x++) {
+			xc: integer = (x*precision - dim*precision/2)/2^10;
+			yc: integer = (y*precision - dim*precision/2)/2^10;
+			r: integer = sqrt_fixed(xc*xc + yc*yc) + 1;
+			v: integer = sin_fixed(r);
+			v = 8*v/precision;
+			if(v < 0) v = 0;
+			if(v > 7) v = 7;
+			print enc[v], enc[v];
+		}
+		print "\n";
+	}
+}
+
