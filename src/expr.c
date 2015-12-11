@@ -338,7 +338,8 @@ int expr_codegen(expr_t *this, FILE *f, bool wantlvalue, int outreg) {
 	case EXPR_DECREMENT:
 		reg = reg_alloc(f);
 		fprintf(f,"\tmov $-1, %s\n",reg_name(reg));
-		fprintf(f,"\txadd %s, %s\n",reg_name(reg),reg_name(left));
+		fprintf(f,"\txadd %s, %s%s\n",reg_name(reg),
+			reg_name(left),reg_is_pointer(left) ? ")" : "");
 		reg_free(left);
 		return reg;
 
@@ -379,7 +380,8 @@ int expr_codegen(expr_t *this, FILE *f, bool wantlvalue, int outreg) {
 	case EXPR_INCREMENT:
 		reg = reg_alloc(f);
 		fprintf(f,"\tmov $1, %s\n",reg_name(reg));
-		fprintf(f,"\txadd %s, %s\n",reg_name(reg),reg_name(left));
+		fprintf(f,"\txadd %s, %s%s\n",reg_name(reg),
+			reg_name(left),reg_is_pointer(left) ? ")" : "");
 		reg_free(left);
 		return reg;
 
@@ -957,7 +959,9 @@ void expr_typecheck(expr_t *this) {
 			if(this->type = this->left->type->subtype, !this->type)
 				this->type = type_create(
 					TYPE_VOID,0,NULL,NULL,false);
+
 			this->type->constant = this->left->type->constant;
+			this->type->lvalue = true;
 			break;
 
 		case EXPR_EQ:
